@@ -23,20 +23,109 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   RangeValues _priceRange = const RangeValues(0, 100);
   String _sortBy = 'Distance';
 
+  // search
+  String _searchQuery = '';
+  final TextEditingController _searchController = TextEditingController();
+  bool _showSearchBar = false;
+
+  // refresh
+  Future<void> _refresh() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() {});
+  }
+
+  List<Map<String, String>> get _filteredItems {
+    var list = _getSampleItems();
+    // category filter
+    if (_selectedCategory != 'All') {
+      list = list.where((i) => i['type']!.contains(_selectedCategory)).toList();
+    }
+    // verified filter
+    if (_verifiedOnly) {
+      list = list.where((i) => i['verified'] == 'true').toList();
+    }
+    // price range
+    list = list.where((i) {
+      final price = _parsePrice(i['price']!);
+      return price >= _priceRange.start && price <= _priceRange.end;
+    }).toList();
+    // search
+    if (_searchQuery.isNotEmpty) {
+      list = list
+          .where(
+            (i) =>
+                i['type']!.toLowerCase().contains(_searchQuery.toLowerCase()),
+          )
+          .toList();
+    }
+    // sort
+    switch (_sortBy) {
+      case 'Price: Low to High':
+        list.sort(
+          (a, b) =>
+              (_parsePrice(a['price']!)).compareTo(_parsePrice(b['price']!)),
+        );
+        break;
+      case 'Price: High to Low':
+        list.sort(
+          (a, b) =>
+              (_parsePrice(b['price']!)).compareTo(_parsePrice(a['price']!)),
+        );
+        break;
+      case 'Rating':
+        list.sort(
+          (a, b) => (double.parse(
+            b['rating']!,
+          )).compareTo(double.parse(a['rating']!)),
+        );
+        break;
+      default:
+        // Distance order remains as sample order
+        break;
+    }
+    return list;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Marketplace'),
+        title: _showSearchBar
+            ? TextField(
+                controller: _searchController,
+                autofocus: true,
+                decoration: const InputDecoration(
+                  hintText: 'Search waste...',
+                  border: InputBorder.none,
+                  hintStyle: TextStyle(color: Colors.white70),
+                ),
+                style: const TextStyle(color: Colors.white),
+                onChanged: (v) {
+                  setState(() {
+                    _searchQuery = v;
+                  });
+                },
+              )
+            : const Text('Marketplace'),
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.search),
+            icon: Icon(_showSearchBar ? Icons.close : Icons.search),
             onPressed: () {
-              _showSearchDialog(context);
+              if (_showSearchBar) {
+                setState(() {
+                  _showSearchBar = false;
+                  _searchQuery = '';
+                  _searchController.clear();
+                });
+              } else {
+                setState(() {
+                  _showSearchBar = true;
+                });
+              }
             },
           ),
           IconButton(
@@ -88,15 +177,34 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             child: Row(
               children: [
                 if (_verifiedOnly)
-                  Chip(
-                    label: const Text('Verified Only'),
-                    deleteIcon: const Icon(Icons.close, size: 18),
-                    onDeleted: () {
-                      setState(() {
-                        _verifiedOnly = false;
-                      });
-                    },
-                    backgroundColor: const Color(0xFF00A699).withOpacity(0.1),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Chip(
+                      label: const Text('Verified Only'),
+                      deleteIcon: const Icon(Icons.close, size: 18),
+                      onDeleted: () {
+                        setState(() {
+                          _verifiedOnly = false;
+                        });
+                      },
+                      backgroundColor: const Color(0xFF00A699).withOpacity(0.1),
+                    ),
+                  ),
+                if (_searchQuery.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: Chip(
+                      label: Text('"$_searchQuery"'),
+                      deleteIcon: const Icon(Icons.close, size: 18),
+                      onDeleted: () {
+                        setState(() {
+                          _searchQuery = '';
+                          _searchController.clear();
+                          _showSearchBar = false;
+                        });
+                      },
+                      backgroundColor: const Color(0xFF00A699).withOpacity(0.1),
+                    ),
                   ),
                 const Spacer(),
                 DropdownButton<String>(
@@ -130,21 +238,40 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
           // Items List
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: _getSampleItems().length,
-              itemBuilder: (context, index) {
-                final item = _getSampleItems()[index];
-                return _buildWasteCard(
-                  item['type']!,
-                  item['quantity']!,
-                  item['price']!,
-                  item['rating']!,
-                  item['distance']!,
-                  item['seller']!,
-                  item['verified'] == 'true',
-                );
-              },
+            child: RefreshIndicator(
+              onRefresh: _refresh,
+              child: _filteredItems.isEmpty
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 120),
+                        Center(
+                          child: Text(
+                            'No items found',
+                            style: TextStyle(
+                              fontSize: 18,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: _filteredItems.length,
+                      itemBuilder: (context, index) {
+                        final item = _filteredItems[index];
+                        return _buildWasteCard(
+                          item['type']!,
+                          item['quantity']!,
+                          item['price']!,
+                          item['rating']!,
+                          item['distance']!,
+                          item['seller']!,
+                          item['verified'] == 'true',
+                        );
+                      },
+                    ),
             ),
           ),
         ],
@@ -234,7 +361,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () {
-          // TODO: Navigate to item details
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text('Selected: $wasteType')));
         },
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -373,6 +502,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  double _parsePrice(String text) {
+    // remove non-numeric characters except dot
+    final cleaned = text.replaceAll(RegExp(r'[^0-9\.]'), '');
+    return double.tryParse(cleaned) ?? 0.0;
+  }
+
   IconData _getIconForWasteType(String wasteType) {
     if (wasteType.contains('Banana') || wasteType.contains('Organic')) {
       return Icons.eco;
@@ -388,41 +523,6 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       return Icons.coffee;
     }
     return Icons.category;
-  }
-
-  void _showSearchDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Search Waste'),
-          content: TextField(
-            decoration: const InputDecoration(
-              hintText: 'Enter waste type...',
-              prefixIcon: Icon(Icons.search),
-              border: OutlineInputBorder(),
-            ),
-            autofocus: true,
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                // TODO: Implement search
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00A699),
-              ),
-              child: const Text('Search'),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   void _showFilterBottomSheet(BuildContext context) {

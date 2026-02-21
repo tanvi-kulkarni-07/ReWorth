@@ -13,10 +13,13 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // wait for 5 seconds then navigate to main screen
+    // wait for 5 seconds then navigate to appropriate screen
     Future.delayed(const Duration(seconds: 5), () {
       if (!mounted) return;
-      if (ref.read(isLoggedInProvider)) {
+      final seen = ref.read(hasSeenOnboardingProvider);
+      if (!seen) {
+        Navigator.pushReplacementNamed(context, '/onboarding');
+      } else if (ref.read(isLoggedInProvider)) {
         Navigator.pushReplacementNamed(context, '/home');
       } else {
         Navigator.pushReplacementNamed(context, '/main');

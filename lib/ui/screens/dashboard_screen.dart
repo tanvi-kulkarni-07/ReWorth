@@ -1,10 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/dashboard_providers.dart';
 
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final waste = ref.watch(totalWasteProvider);
+    final carbon = ref.watch(carbonSavedProvider);
+    final earnings = ref.watch(earningsProvider);
+    final suggestions = ref.watch(aiSuggestionsProvider);
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -33,7 +40,7 @@ class DashboardScreen extends StatelessWidget {
                   children: [
                     // Greeting
                     const Text(
-                      'Welcome, Sharvari 👋',
+                      'Welcome, Tanvi 👋',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -47,7 +54,7 @@ class DashboardScreen extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             'Total Waste Sold',
-                            '245',
+                            waste.toString(),
                             'kg',
                             Icons.delete_outline,
                           ),
@@ -56,7 +63,7 @@ class DashboardScreen extends StatelessWidget {
                         Expanded(
                           child: _buildStatCard(
                             'Carbon Saved',
-                            '128',
+                            carbon.toString(),
                             'CO₂ kg',
                             Icons.eco,
                           ),
@@ -64,7 +71,7 @@ class DashboardScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 12),
-                    _buildEarningsCard(),
+                    _buildEarningsCard(earnings),
                   ],
                 ),
               ),
@@ -106,7 +113,7 @@ class DashboardScreen extends StatelessWidget {
                           Icons.list_alt,
                           Colors.blue,
                           () {
-                            // TODO: Navigate to my listings
+                            Navigator.pushNamed(context, '/my_listings');
                           },
                         ),
                       ),
@@ -119,7 +126,7 @@ class DashboardScreen extends StatelessWidget {
                     Icons.analytics,
                     Colors.orange,
                     () {
-                      // TODO: Navigate to market insights
+                      Navigator.pushNamed(context, '/market_insights');
                     },
                   ),
                 ],
@@ -151,17 +158,27 @@ class DashboardScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 16),
-                  _buildAISuggestionCard(
-                    '🌾 Banana fiber demand is high in your region.',
-                    'Trending Now',
-                    Colors.green,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildAISuggestionCard(
-                    '♻️ Plastic prices increased by 5%.',
-                    'Price Alert',
-                    Colors.blue,
-                  ),
+                  // dynamic list
+                  ...suggestions.map((item) {
+                    return Column(
+                      children: [
+                        GestureDetector(
+                          onTap: () {
+                            // simple tap feedback
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text(item['text'] as String)),
+                            );
+                          },
+                          child: _buildAISuggestionCard(
+                            item['text'] as String,
+                            item['tag'] as String,
+                            item['color'] as Color,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                    );
+                  }).toList(),
                 ],
               ),
             ),
@@ -217,7 +234,7 @@ class DashboardScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildEarningsCard() {
+  Widget _buildEarningsCard(double earnings) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),

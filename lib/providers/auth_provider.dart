@@ -74,3 +74,6 @@ final signupNameProvider = StateProvider<String>((ref) => '');
 final signupEmailProvider = StateProvider<String>((ref) => '');
 final signupPasswordProvider = StateProvider<String>((ref) => '');
 final signupRoleProvider = StateProvider<String>((ref) => 'seller');
+
+// indicates whether the onboarding has been shown already
+final hasSeenOnboardingProvider = StateProvider<bool>((ref) => false);
