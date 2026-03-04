@@ -1,4 +1,10 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 class UploadWasteScreen extends StatefulWidget {
   const UploadWasteScreen({Key? key}) : super(key: key);
@@ -10,12 +16,15 @@ class UploadWasteScreen extends StatefulWidget {
 class _UploadWasteScreenState extends State<UploadWasteScreen> {
   int _currentStep = 0;
   bool _isProcessing = false;
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
+  ImageLabeler? _imageLabeler;
 
   // AI Detection Results
-  String _detectedMaterial = 'Plastic Bottles (PET)';
-  double _confidence = 94.5;
-  String _suggestedPrice = '₹25';
-  String _priceRange = '₹22 - ₹28';
+  String _detectedMaterial = 'Scanning...';
+  double _confidence = 0.0;
+  String _suggestedPrice = '₹0';
+  String _priceRange = '₹0 - ₹0';
 
   final List<Map<String, dynamic>> _nearbyBuyers = [
     {
@@ -32,14 +41,162 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
       'price': '₹25/kg',
       'verified': true,
     },
-    {
-      'name': 'Waste Masters',
-      'distance': '4.5 km',
-      'rating': '4.4',
-      'price': '₹24/kg',
-      'verified': false,
-    },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeLabeler();
+  }
+
+  // To use a custom model, we need to ensure the asset is available locally
+  Future<String> _getModelPath(String asset) async {
+    final localPath = '${(await getApplicationSupportDirectory()).path}/$asset';
+    await Directory(p.dirname(localPath)).create(recursive: true);
+    final file = File(localPath);
+    if (!await file.exists()) {
+      final byteData = await rootBundle.load(asset);
+      await file.writeAsBytes(byteData.buffer
+          .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
+    }
+    return file.path;
+  }
+
+  void _initializeLabeler() async {
+    try {
+      // Step 1: Check if custom model exists in assets
+      // Note: You must place your model.tflite in assets/ml/
+      final modelPath = await _getModelPath('assets/ml/model.tflite');
+      
+      final options = LocalLabelerOptions(
+        modelPath: modelPath,
+        confidenceThreshold: 0.7, // Higher threshold for custom trained models
+      );
+      _imageLabeler = ImageLabeler(options: options);
+      debugPrint('Custom ML Model loaded successfully');
+    } catch (e) {
+      debugPrint('Custom model not found, falling back to default: $e');
+      // Fallback to default if custom model isn't ready yet
+      final options = ImageLabelerOptions(confidenceThreshold: 0.5);
+      _imageLabeler = ImageLabeler(options: options);
+    }
+  }
+
+  @override
+  void dispose() {
+    _imageLabeler?.close();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1000,
+        maxHeight: 1000,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _image = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  Future<void> _processImage() async {
+    if (_image == null || _imageLabeler == null) return;
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      final inputImage = InputImage.fromFile(_image!);
+      final List<ImageLabel> labels = await _imageLabeler!.processImage(inputImage);
+
+      if (labels.isNotEmpty) {
+        // Use the new, smarter mapping logic
+        final Map<String, dynamic> bestMatch = _mapLabelsToBestWasteCategory(labels);
+
+        setState(() {
+          _detectedMaterial = bestMatch['material'];
+          _confidence = bestMatch['confidence'];
+          _updatePricing(_detectedMaterial);
+          _currentStep = 1; 
+        });
+      } else {
+        setState(() {
+          _detectedMaterial = 'Unknown Material';
+          _confidence = 0.0;
+          _currentStep = 1;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error processing image: $e');
+    } finally {
+      setState(() {
+        _isProcessing = false;
+      });
+    }
+  }
+
+  void _updatePricing(String material) {
+    if (material.contains('Plastic')) {
+      _suggestedPrice = '₹25';
+      _priceRange = '₹22 - ₹28';
+    } else if (material.contains('Paper')) {
+      _suggestedPrice = '₹12';
+      _priceRange = '₹10 - ₹15';
+    } else if (material.contains('Metal')) {
+      _suggestedPrice = '₹45';
+      _priceRange = '₹40 - ₹55';
+    } else {
+      _suggestedPrice = '₹15';
+      _priceRange = '₹10 - ₹20';
+    }
+  }
+
+  // --- NEW, SMARTER MAPPING LOGIC ---
+  Map<String, dynamic> _mapLabelsToBestWasteCategory(List<ImageLabel> labels) {
+    // Define keywords for each of your categories
+    final Map<String, List<String>> wasteCategoryKeywords = {
+      'Plastic (PET)': ['bottle', 'plastic', 'water bottle', 'polyethylene terephthalate'],
+      'Metal / Aluminum': ['can', 'tin', 'aluminum', 'metal', 'beverage can'],
+      'Paper / Cardboard': ['paper', 'cardboard', 'box', 'paperboard', 'carton', 'envelope'],
+    };
+
+    double bestConfidence = 0.0;
+    String bestCategory = 'Unknown Material';
+
+    // Iterate through all labels returned by ML Kit
+    for (final label in labels) {
+      final currentLabel = label.label.toLowerCase();
+
+      // Check this label against our keyword lists
+      for (final category in wasteCategoryKeywords.keys) {
+        for (final keyword in wasteCategoryKeywords[category]!) {
+          // If a keyword matches, see if it has the highest confidence so far
+          if (currentLabel.contains(keyword)) {
+            if (label.confidence > bestConfidence) {
+              bestConfidence = label.confidence;
+              bestCategory = category;
+            }
+          }
+        }
+      }
+    }
+
+    // If no keyword was matched after checking all labels, fall back to the top result from ML Kit.
+    if (bestCategory == 'Unknown Material' && labels.isNotEmpty) {
+      bestCategory = labels.first.label; // Use the raw label from Google
+      bestConfidence = labels.first.confidence;
+    }
+
+    return {'material': bestCategory, 'confidence': bestConfidence * 100};
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -48,26 +205,16 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
       appBar: AppBar(
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
-        title: const Text('Upload Waste'),
+        title: const Text('AI Waste Recognition'),
         elevation: 0,
       ),
       body: Column(
         children: [
-          // Progress Indicator
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              children: [
-                _buildStepIndicator(0, 'Photo'),
-                _buildStepLine(0),
-                _buildStepIndicator(1, 'Detect'),
-                _buildStepLine(1),
-                _buildStepIndicator(2, 'Price'),
-                _buildStepLine(2),
-                _buildStepIndicator(3, 'Buyers'),
-              ],
-            ),
+          // Progress Bar
+          LinearProgressIndicator(
+            value: (_currentStep + 1) / 4,
+            backgroundColor: Colors.grey[200],
+            color: const Color(0xFF00A699),
           ),
 
           // Content
@@ -81,532 +228,129 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
           // Bottom Actions
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
+            decoration: const BoxDecoration(
               color: Colors.white,
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, -5),
-                ),
-              ],
+              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10)],
             ),
             child: Row(
               children: [
                 if (_currentStep > 0)
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          _currentStep--;
-                        });
-                      },
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF00A699)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                      child: const Text('Back'),
-                    ),
+                  IconButton(
+                    onPressed: () => setState(() => _currentStep--),
+                    icon: const Icon(Icons.arrow_back),
                   ),
-                if (_currentStep > 0) const SizedBox(width: 12),
+                const SizedBox(width: 12),
                 Expanded(
-                  flex: 2,
                   child: ElevatedButton(
                     onPressed: _isProcessing ? null : _handleNextStep,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00A699),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                      minimumSize: const Size(double.infinity, 54),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
                     child: _isProcessing
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
-                        : Text(
-                            _currentStep == 3 ? 'Create Listing' : 'Next',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                        ? const CircularProgressIndicator(color: Colors.white)
+                        : Text(_currentStep == 0 ? 'Start AI Scan' : 'Continue'),
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildStepIndicator(int step, String label) {
-    final isActive = _currentStep == step;
-    final isCompleted = _currentStep > step;
-
-    return Column(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: isActive || isCompleted
-                ? const Color(0xFF00A699)
-                : Colors.grey[300],
-            shape: BoxShape.circle,
-          ),
-          child: Center(
-            child: isCompleted
-                ? const Icon(Icons.check, color: Colors.white, size: 20)
-                : Text(
-                    '${step + 1}',
-                    style: TextStyle(
-                      color: isActive ? Colors.white : Colors.grey[600],
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            color: isActive ? const Color(0xFF00A699) : Colors.grey[600],
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStepLine(int step) {
-    final isCompleted = _currentStep > step;
-    return Expanded(
-      child: Container(
-        height: 2,
-        margin: const EdgeInsets.only(bottom: 24),
-        color: isCompleted ? const Color(0xFF00A699) : Colors.grey[300],
       ),
     );
   }
 
   Widget _buildStepContent() {
     switch (_currentStep) {
-      case 0:
-        return _buildPhotoStep();
-      case 1:
-        return _buildDetectStep();
-      case 2:
-        return _buildPriceStep();
-      case 3:
-        return _buildBuyersStep();
-      default:
-        return _buildPhotoStep();
+      case 0: return _buildPhotoStep();
+      case 1: return _buildDetectStep();
+      case 2: return _buildPriceStep();
+      case 3: return _buildBuyersStep();
+      default: return _buildPhotoStep();
     }
   }
 
-  // Step 1: Take Photo
   Widget _buildPhotoStep() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              const Text('📸', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'Take a Photo of Your Waste',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Our AI will automatically detect the material type and suggest the best price',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-
-              // Photo placeholder
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey[400]!,
-                    width: 2,
-                    style: BorderStyle.solid,
-                  ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No photo selected',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Open camera
-                      },
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Camera'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF00A699)),
-                        foregroundColor: const Color(0xFF00A699),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Open gallery
-                      },
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Gallery'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF00A699)),
-                        foregroundColor: const Color(0xFF00A699),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+        const Text(
+          'Identify Material',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text('Point your camera at the waste for instant valuation', 
+          style: TextStyle(color: Colors.grey[600])),
+        const SizedBox(height: 30),
+        GestureDetector(
+          onTap: () => _pickImage(ImageSource.camera),
+          child: Container(
+            height: 300,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey[300]!, width: 2),
+            ),
+            child: _image != null
+                ? ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.file(_image!, fit: BoxFit.cover))
+                : const Icon(Icons.add_a_photo_outlined, size: 80, color: Colors.grey),
           ),
         ),
         const SizedBox(height: 20),
-        _buildTipsCard([
-          'Ensure good lighting',
-          'Capture the entire item',
-          'Keep background clear',
-        ]),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera),
+                label: const Text('Camera'),
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo),
+                label: const Text('Gallery'),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
-  // Step 2: AI Auto-detect Material
   Widget _buildDetectStep() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              const Text('🤖', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'AI Detection Complete!',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-
-              // Detection Results
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.green.shade50, Colors.blue.shade50],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.green.shade200, width: 1),
-                ),
-                child: Column(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Detected Material',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                size: 14,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_confidence.toStringAsFixed(1)}% Confident',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _detectedMaterial,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF00A699),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Material Details
-              _buildDetailItem(
-                'Category',
-                'Recyclable Plastic',
-                Icons.category,
-              ),
-              _buildDetailItem(
-                'Condition',
-                'Clean & Sorted',
-                Icons.cleaning_services,
-              ),
-              _buildDetailItem('Weight Est.', '~15-20 kg', Icons.scale),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.amber.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.lightbulb, color: Colors.amber.shade700),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Not correct? You can manually select the material type',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+    return Center(
+      child: Column(
+        children: [
+          const Icon(Icons.auto_awesome, size: 80, color: Color(0xFF00A699)),
+          const SizedBox(height: 20),
+          const Text('Scan Result', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Text(_detectedMaterial, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF00A699))),
+          Text('Confidence: ${_confidence.toStringAsFixed(1)}%', style: TextStyle(color: Colors.grey[600])),
+        ],
+      ),
     );
   }
 
-  // Step 3: Suggest Market Price
   Widget _buildPriceStep() {
     return Column(
       children: [
+        const Text('Estimated Value', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 20),
         Container(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(30),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: const Color(0xFF00A699),
             borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
           ),
           child: Column(
             children: [
-              const Text('💰', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'AI Suggested Price',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Based on current market rates',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 32),
-
-              // Suggested Price Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF00A699), Color(0xFF00C9B7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF00A699).withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Recommended Price',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _suggestedPrice,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold,
-                            height: 1,
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            '/kg',
-                            style: TextStyle(color: Colors.white, fontSize: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Market range: $_priceRange',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Price Insights
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    _buildPriceInsight(
-                      '📈',
-                      'Price up 8% from last week',
-                      Colors.green,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPriceInsight(
-                      '⚡',
-                      'High demand in your area',
-                      Colors.orange,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPriceInsight(
-                      '🎯',
-                      'Best time to sell: Now',
-                      Colors.blue,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              // Custom Price Input
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Or set your own price',
-                  prefixText: '₹ ',
-                  suffixText: '/kg',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF00A699),
-                      width: 2,
-                    ),
-                  ),
-                ),
-                keyboardType: TextInputType.number,
-              ),
+              Text(_suggestedPrice, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white)),
+              const Text('per kilogram', style: TextStyle(color: Colors.white70)),
             ],
           ),
         ),
@@ -614,268 +358,31 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
     );
   }
 
-  // Step 4: Suggest Nearby Buyers
   Widget _buildBuyersStep() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              const Text('🎯', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'Nearby Buyers',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Select buyers to notify about your listing',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
+        const Text('Interested Buyers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         const SizedBox(height: 20),
-
-        // Buyers List
-        ..._nearbyBuyers.map((buyer) => _buildBuyerCard(buyer)).toList(),
-
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.green.shade700),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Selected buyers will be notified instantly about your listing',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
+        ..._nearbyBuyers.map((b) => ListTile(
+          title: Text(b['name']),
+          subtitle: Text('${b['distance']} away • ${b['rating']} ⭐'),
+          trailing: Text(b['price'], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00A699))),
+        )),
       ],
-    );
-  }
-
-  Widget _buildBuyerCard(Map<String, dynamic> buyer) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFF00A699).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.store, color: Color(0xFF00A699), size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      buyer['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (buyer['verified'] == true) ...[
-                      const SizedBox(width: 6),
-                      const Icon(Icons.verified, size: 16, color: Colors.blue),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.star, size: 14, color: Colors.amber[700]),
-                    const SizedBox(width: 4),
-                    Text(
-                      buyer['rating'] as String,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      buyer['distance'] as String,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                buyer['price'] as String,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF00A699),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Checkbox(
-                value: true,
-                onChanged: (value) {},
-                activeColor: const Color(0xFF00A699),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey[600], size: 20),
-          const SizedBox(width: 12),
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceInsight(String emoji, String text, Color color) {
-    return Row(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 13,
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTipsCard(List<String> tips) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.blue.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.blue.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.tips_and_updates, color: Colors.blue.shade700),
-              const SizedBox(width: 8),
-              Text(
-                'Tips for better results',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade700,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          ...tips.map(
-            (tip) => Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.check_circle,
-                    size: 16,
-                    color: Colors.blue.shade700,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(tip, style: const TextStyle(fontSize: 13)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 
   void _handleNextStep() {
-    if (_currentStep < 3) {
-      setState(() {
-        _isProcessing = true;
-      });
-
-      // Simulate processing
-      Future.delayed(const Duration(milliseconds: 800), () {
-        setState(() {
-          _currentStep++;
-          _isProcessing = false;
-        });
-      });
+    if (_currentStep == 0) {
+      if (_image == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please capture an image')));
+        return;
+      }
+      _processImage();
+    } else if (_currentStep < 3) {
+      setState(() => _currentStep++);
     } else {
-      // Create listing
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✅ Listing created successfully!'),
-          backgroundColor: Colors.green,
-        ),
-      );
     }
   }
 }
