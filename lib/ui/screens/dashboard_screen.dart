@@ -15,7 +15,7 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Dashboard'),
+        title: const Text('Dashboard for branch test'),
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
         elevation: 0,
