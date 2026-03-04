@@ -1,0 +1,19 @@
+import 'package:flutter/material.dart';
+
+class MyListingsScreen extends StatelessWidget {
+  const MyListingsScreen({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Listings'),
+        backgroundColor: const Color(0xFF00A699),
+        foregroundColor: Colors.white,
+      ),
+      body: const Center(
+        child: Text('No listings yet', style: TextStyle(fontSize: 18)),
+      ),
+    );
+  }
+}
