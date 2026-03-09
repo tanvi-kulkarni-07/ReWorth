@@ -46,5 +46,5 @@ app.*.map.json
 
 build/
 ios/build/
-android/build/
-.vscode/
+android/.gradle/
+android/app/build/

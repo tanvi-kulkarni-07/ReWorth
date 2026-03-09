@@ -1,7 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+import '../../services/waste_classifier_service.dart';
 
 class UploadWasteScreen extends StatefulWidget {
-  const UploadWasteScreen({Key? key}) : super(key: key);
+  const UploadWasteScreen({super.key});
 
   @override
   State<UploadWasteScreen> createState() => _UploadWasteScreenState();
@@ -10,12 +15,18 @@ class UploadWasteScreen extends StatefulWidget {
 class _UploadWasteScreenState extends State<UploadWasteScreen> {
   int _currentStep = 0;
   bool _isProcessing = false;
+  bool _isModelReady = false;
+  File? _image;
+  final ImagePicker _picker = ImagePicker();
+  final WasteClassifierService _wasteClassifier = WasteClassifierService();
 
   // AI Detection Results
-  String _detectedMaterial = 'Plastic Bottles (PET)';
-  double _confidence = 94.5;
-  String _suggestedPrice = '₹25';
-  String _priceRange = '₹22 - ₹28';
+  String _detectedMaterial = 'Scanning...';
+  double _confidence = 0.0;
+  String _suggestedPrice = '₹0';
+  String _priceRange = '₹0 - ₹0';
+  String _scanGuidance = 'Capture a clear image with the waste centered.';
+  List<WastePrediction> _topPredictions = const [];
 
   final List<Map<String, dynamic>> _nearbyBuyers = [
     {
@@ -32,14 +43,137 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
       'price': '₹25/kg',
       'verified': true,
     },
-    {
-      'name': 'Waste Masters',
-      'distance': '4.5 km',
-      'rating': '4.4',
-      'price': '₹24/kg',
-      'verified': false,
-    },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeClassifier();
+  }
+
+  Future<void> _initializeClassifier() async {
+    try {
+      await _wasteClassifier.load();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isModelReady = true;
+      });
+    } catch (e) {
+      debugPrint('Failed to load waste classifier model: $e');
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not load the waste detection model.'),
+        ),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _wasteClassifier.close();
+    super.dispose();
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: source,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 80,
+      );
+
+      if (pickedFile != null) {
+        setState(() {
+          _image = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error picking image: $e');
+    }
+  }
+
+  Future<void> _processImage() async {
+    if (_image == null || !_isModelReady) {
+      return;
+    }
+
+    setState(() {
+      _isProcessing = true;
+    });
+
+    try {
+      await Future<void>.delayed(Duration.zero);
+      final result = await _wasteClassifier.classify(_image!);
+
+      setState(() {
+        _detectedMaterial = result.label;
+        _confidence = result.confidence;
+        _topPredictions = result.topPredictions;
+        _scanGuidance = result.isReliable
+            ? 'Model confidence is good enough to estimate pricing.'
+            : 'Low-confidence result. Retake the photo with a single waste item filling most of the frame.';
+        _updatePricing(result.isReliable ? _detectedMaterial : '');
+        _currentStep = 1;
+      });
+    } catch (e) {
+      debugPrint('Error processing image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Waste detection failed for the selected image.'),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
+
+  void _updatePricing(String material) {
+    final normalized = material.toLowerCase();
+
+    if (normalized.contains('plastic')) {
+      _suggestedPrice = '₹25';
+      _priceRange = '₹22 - ₹28';
+    } else if (normalized.contains('paper')) {
+      _suggestedPrice = '₹12';
+      _priceRange = '₹10 - ₹15';
+    } else if (normalized.contains('metal')) {
+      _suggestedPrice = '₹45';
+      _priceRange = '₹40 - ₹55';
+    } else if (normalized.contains('e waste') ||
+        normalized.contains('e-waste')) {
+      _suggestedPrice = '₹60';
+      _priceRange = '₹45 - ₹75';
+    } else if (normalized.contains('glass')) {
+      _suggestedPrice = '₹8';
+      _priceRange = '₹5 - ₹10';
+    } else if (normalized.contains('textile')) {
+      _suggestedPrice = '₹18';
+      _priceRange = '₹12 - ₹25';
+    } else if (normalized.contains('rubber')) {
+      _suggestedPrice = '₹20';
+      _priceRange = '₹15 - ₹24';
+    } else if (normalized.contains('wet waste')) {
+      _suggestedPrice = '₹6';
+      _priceRange = '₹4 - ₹8';
+    } else {
+      _suggestedPrice = '₹0';
+      _priceRange = 'Retake scan for pricing';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -118,26 +252,15 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
                     onPressed: _isProcessing ? null : _handleNextStep,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00A699),
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      minimumSize: const Size(double.infinity, 54),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
                     child: _isProcessing
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
+                        ? const CircularProgressIndicator(color: Colors.white)
                         : Text(
-                            _currentStep == 3 ? 'Create Listing' : 'Next',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
+                            _currentStep == 0 ? 'Start AI Scan' : 'Continue',
                           ),
                   ),
                 ),
@@ -220,247 +343,142 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   Widget _buildPhotoStep() {
     return Column(
       children: [
+        const Text(
+          'Identify Material',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Point your camera at the waste for instant valuation',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 12),
         Container(
-          padding: const EdgeInsets.all(24),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
+            color: _isModelReady
+                ? const Color(0xFFE7F8F6)
+                : const Color(0xFFFFF3E0),
+            borderRadius: BorderRadius.circular(12),
           ),
-          child: Column(
-            children: [
-              const Text('📸', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'Take a Photo of Your Waste',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Our AI will automatically detect the material type and suggest the best price',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 32),
-
-              // Photo placeholder
-              Container(
-                height: 300,
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: Colors.grey[400]!,
-                    width: 2,
-                    style: BorderStyle.solid,
+          child: Text(
+            _isModelReady
+                ? 'Custom waste model is ready. Supported classes: ${_wasteClassifier.supportedLabels.join(', ')}'
+                : 'Loading custom waste detection model...',
+            style: TextStyle(
+              color: _isModelReady
+                  ? const Color(0xFF00695C)
+                  : const Color(0xFF8A5A00),
+            ),
+          ),
+        ),
+        const SizedBox(height: 30),
+        GestureDetector(
+          onTap: () => _pickImage(ImageSource.camera),
+          child: Container(
+            height: 300,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.grey[300]!, width: 2),
+            ),
+            child: _image != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.file(_image!, fit: BoxFit.cover),
+                  )
+                : const Icon(
+                    Icons.add_a_photo_outlined,
+                    size: 80,
+                    color: Colors.grey,
                   ),
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.add_a_photo,
-                        size: 64,
-                        color: Colors.grey[400],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        'No photo selected',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 14),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Open camera
-                      },
-                      icon: const Icon(Icons.camera_alt),
-                      label: const Text('Camera'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF00A699)),
-                        foregroundColor: const Color(0xFF00A699),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () {
-                        // TODO: Open gallery
-                      },
-                      icon: const Icon(Icons.photo_library),
-                      label: const Text('Gallery'),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(color: Color(0xFF00A699)),
-                        foregroundColor: const Color(0xFF00A699),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
           ),
         ),
         const SizedBox(height: 20),
-        _buildTipsCard([
-          'Ensure good lighting',
-          'Capture the entire item',
-          'Keep background clear',
-        ]),
+        Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickImage(ImageSource.camera),
+                icon: const Icon(Icons.camera),
+                label: const Text('Camera'),
+              ),
+            ),
+            const SizedBox(width: 15),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: () => _pickImage(ImageSource.gallery),
+                icon: const Icon(Icons.photo),
+                label: const Text('Gallery'),
+              ),
+            ),
+          ],
+        ),
       ],
     );
   }
 
   // Step 2: AI Auto-detect Material
   Widget _buildDetectStep() {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
+    return Center(
+      child: Column(
+        children: [
+          const Icon(Icons.auto_awesome, size: 80, color: Color(0xFF00A699)),
+          const SizedBox(height: 20),
+          const Text(
+            'Scan Result',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
-          child: Column(
-            children: [
-              const Text('🤖', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'AI Detection Complete!',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 32),
-
-              // Detection Results
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.green.shade50, Colors.blue.shade50],
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.green.shade200, width: 1),
+          const SizedBox(height: 10),
+          Text(
+            _detectedMaterial,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF00A699),
+            ),
+          ),
+          Text(
+            'Confidence: ${_confidence.toStringAsFixed(1)}%',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _scanGuidance,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+          if (_topPredictions.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Top matches',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[800],
                 ),
-                child: Column(
+              ),
+            ),
+            const SizedBox(height: 10),
+            ..._topPredictions.map(
+              (prediction) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Detected Material',
-                          style: TextStyle(fontSize: 14, color: Colors.grey),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.green,
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle,
-                                size: 14,
-                                color: Colors.white,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${_confidence.toStringAsFixed(1)}% Confident',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Text(
-                      _detectedMaterial,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF00A699),
-                      ),
-                    ),
+                    Text(prediction.label),
+                    Text('${prediction.confidence.toStringAsFixed(1)}%'),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // Material Details
-              _buildDetailItem(
-                'Category',
-                'Recyclable Plastic',
-                Icons.category,
-              ),
-              _buildDetailItem(
-                'Condition',
-                'Clean & Sorted',
-                Icons.cleaning_services,
-              ),
-              _buildDetailItem('Weight Est.', '~15-20 kg', Icons.scale),
-            ],
-          ),
-        ),
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.amber.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.amber.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.lightbulb, color: Colors.amber.shade700),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Not correct? You can manually select the material type',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 
@@ -468,6 +486,11 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   Widget _buildPriceStep() {
     return Column(
       children: [
+        const Text(
+          'Estimated Value',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
@@ -483,129 +506,25 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
           ),
           child: Column(
             children: [
-              const Text('💰', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'AI Suggested Price',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
               Text(
-                'Based on current market rates',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-              ),
-              const SizedBox(height: 32),
-
-              // Suggested Price Card
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF00A699), Color(0xFF00C9B7)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: const Color(0xFF00A699).withOpacity(0.3),
-                      blurRadius: 15,
-                      offset: const Offset(0, 8),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Recommended Price',
-                      style: TextStyle(color: Colors.white70, fontSize: 14),
-                    ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _suggestedPrice,
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold,
-                            height: 1,
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.only(bottom: 8),
-                          child: Text(
-                            '/kg',
-                            style: TextStyle(color: Colors.white, fontSize: 20),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Market range: $_priceRange',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ],
+                _suggestedPrice,
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-              const SizedBox(height: 24),
-
-              // Price Insights
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.blue.shade50,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Column(
-                  children: [
-                    _buildPriceInsight(
-                      '📈',
-                      'Price up 8% from last week',
-                      Colors.green,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPriceInsight(
-                      '⚡',
-                      'High demand in your area',
-                      Colors.orange,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildPriceInsight(
-                      '🎯',
-                      'Best time to sell: Now',
-                      Colors.blue,
-                    ),
-                  ],
-                ),
+              const Text(
+                'per kilogram',
+                style: TextStyle(color: Colors.white70),
               ),
-              const SizedBox(height: 24),
-
-              // Custom Price Input
-              TextField(
-                decoration: InputDecoration(
-                  labelText: 'Or set your own price',
-                  prefixText: '₹ ',
-                  suffixText: '/kg',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(
-                      color: Color(0xFF00A699),
-                      width: 2,
-                    ),
-                  ),
+              const SizedBox(height: 8),
+              Text(
+                _priceRange,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
                 ),
-                keyboardType: TextInputType.number,
               ),
             ],
           ),
@@ -618,188 +537,21 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   Widget _buildBuyersStep() {
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.grey.withOpacity(0.1),
-                blurRadius: 10,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              const Text('🎯', style: TextStyle(fontSize: 64)),
-              const SizedBox(height: 20),
-              const Text(
-                'Nearby Buyers',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Select buyers to notify about your listing',
-                style: TextStyle(fontSize: 15, color: Colors.grey[600]),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+        const Text(
+          'Interested Buyers',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
-
-        // Buyers List
-        ..._nearbyBuyers.map((buyer) => _buildBuyerCard(buyer)).toList(),
-
-        const SizedBox(height: 20),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.green.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.green.shade200),
-          ),
-          child: Row(
-            children: [
-              Icon(Icons.info_outline, color: Colors.green.shade700),
-              const SizedBox(width: 12),
-              const Expanded(
-                child: Text(
-                  'Selected buyers will be notified instantly about your listing',
-                  style: TextStyle(fontSize: 13),
-                ),
+        ..._nearbyBuyers.map(
+          (b) => ListTile(
+            title: Text(b['name']),
+            subtitle: Text('${b['distance']} away • ${b['rating']} ⭐'),
+            trailing: Text(
+              b['price'],
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00A699),
               ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildBuyerCard(Map<String, dynamic> buyer) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.05),
-            blurRadius: 5,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: const Color(0xFF00A699).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(Icons.store, color: Color(0xFF00A699), size: 28),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(
-                      buyer['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    if (buyer['verified'] == true) ...[
-                      const SizedBox(width: 6),
-                      const Icon(Icons.verified, size: 16, color: Colors.blue),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.star, size: 14, color: Colors.amber[700]),
-                    const SizedBox(width: 4),
-                    Text(
-                      buyer['rating'] as String,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(width: 12),
-                    Icon(Icons.location_on, size: 14, color: Colors.grey[600]),
-                    const SizedBox(width: 4),
-                    Text(
-                      buyer['distance'] as String,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                buyer['price'] as String,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF00A699),
-                ),
-              ),
-              const SizedBox(height: 4),
-              Checkbox(
-                value: true,
-                onChanged: (value) {},
-                activeColor: const Color(0xFF00A699),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value, IconData icon) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.grey[600], size: 20),
-          const SizedBox(width: 12),
-          Text(label, style: TextStyle(fontSize: 14, color: Colors.grey[600])),
-          const Spacer(),
-          Text(
-            value,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPriceInsight(String emoji, String text, Color color) {
-    return Row(
-      children: [
-        Text(emoji, style: const TextStyle(fontSize: 20)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
-            text,
-            style: TextStyle(
-              fontSize: 13,
-              color: color,
-              fontWeight: FontWeight.w600,
             ),
           ),
         ),
@@ -855,18 +607,24 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   }
 
   void _handleNextStep() {
-    if (_currentStep < 3) {
-      setState(() {
-        _isProcessing = true;
-      });
-
-      // Simulate processing
-      Future.delayed(const Duration(milliseconds: 800), () {
-        setState(() {
-          _currentStep++;
-          _isProcessing = false;
-        });
-      });
+    if (_currentStep == 0) {
+      if (_image == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please capture an image')),
+        );
+        return;
+      }
+      if (!_isModelReady) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The waste detection model is still loading.'),
+          ),
+        );
+        return;
+      }
+      _processImage();
+    } else if (_currentStep < 3) {
+      setState(() => _currentStep++);
     } else {
       // Create listing
       Navigator.pop(context);

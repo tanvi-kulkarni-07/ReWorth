@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/dashboard_providers.dart';
 
 class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -178,7 +178,7 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(height: 12),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
