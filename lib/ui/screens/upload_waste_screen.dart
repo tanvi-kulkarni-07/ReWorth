@@ -1,13 +1,12 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:google_mlkit_image_labeling/google_mlkit_image_labeling.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
+
+import '../../services/waste_classifier_service.dart';
 
 class UploadWasteScreen extends StatefulWidget {
-  const UploadWasteScreen({Key? key}) : super(key: key);
+  const UploadWasteScreen({super.key});
 
   @override
   State<UploadWasteScreen> createState() => _UploadWasteScreenState();
@@ -16,15 +15,18 @@ class UploadWasteScreen extends StatefulWidget {
 class _UploadWasteScreenState extends State<UploadWasteScreen> {
   int _currentStep = 0;
   bool _isProcessing = false;
+  bool _isModelReady = false;
   File? _image;
   final ImagePicker _picker = ImagePicker();
-  ImageLabeler? _imageLabeler;
+  final WasteClassifierService _wasteClassifier = WasteClassifierService();
 
   // AI Detection Results
   String _detectedMaterial = 'Scanning...';
   double _confidence = 0.0;
   String _suggestedPrice = '₹0';
   String _priceRange = '₹0 - ₹0';
+  String _scanGuidance = 'Capture a clear image with the waste centered.';
+  List<WastePrediction> _topPredictions = const [];
 
   final List<Map<String, dynamic>> _nearbyBuyers = [
     {
@@ -46,45 +48,36 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   @override
   void initState() {
     super.initState();
-    _initializeLabeler();
+    _initializeClassifier();
   }
 
-  // To use a custom model, we need to ensure the asset is available locally
-  Future<String> _getModelPath(String asset) async {
-    final localPath = '${(await getApplicationSupportDirectory()).path}/$asset';
-    await Directory(p.dirname(localPath)).create(recursive: true);
-    final file = File(localPath);
-    if (!await file.exists()) {
-      final byteData = await rootBundle.load(asset);
-      await file.writeAsBytes(byteData.buffer
-          .asUint8List(byteData.offsetInBytes, byteData.lengthInBytes));
-    }
-    return file.path;
-  }
-
-  void _initializeLabeler() async {
+  Future<void> _initializeClassifier() async {
     try {
-      // Step 1: Check if custom model exists in assets
-      // Note: You must place your model.tflite in assets/ml/
-      final modelPath = await _getModelPath('assets/ml/model.tflite');
-      
-      final options = LocalLabelerOptions(
-        modelPath: modelPath,
-        confidenceThreshold: 0.7, // Higher threshold for custom trained models
-      );
-      _imageLabeler = ImageLabeler(options: options);
-      debugPrint('Custom ML Model loaded successfully');
+      await _wasteClassifier.load();
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isModelReady = true;
+      });
     } catch (e) {
-      debugPrint('Custom model not found, falling back to default: $e');
-      // Fallback to default if custom model isn't ready yet
-      final options = ImageLabelerOptions(confidenceThreshold: 0.5);
-      _imageLabeler = ImageLabeler(options: options);
+      debugPrint('Failed to load waste classifier model: $e');
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not load the waste detection model.'),
+        ),
+      );
     }
   }
 
   @override
   void dispose() {
-    _imageLabeler?.close();
+    _wasteClassifier.close();
     super.dispose();
   }
 
@@ -92,8 +85,9 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
     try {
       final XFile? pickedFile = await _picker.pickImage(
         source: source,
-        maxWidth: 1000,
-        maxHeight: 1000,
+        maxWidth: 1280,
+        maxHeight: 1280,
+        imageQuality: 80,
       );
 
       if (pickedFile != null) {
@@ -107,95 +101,78 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   }
 
   Future<void> _processImage() async {
-    if (_image == null || _imageLabeler == null) return;
+    if (_image == null || !_isModelReady) {
+      return;
+    }
 
     setState(() {
       _isProcessing = true;
     });
 
     try {
-      final inputImage = InputImage.fromFile(_image!);
-      final List<ImageLabel> labels = await _imageLabeler!.processImage(inputImage);
+      await Future<void>.delayed(Duration.zero);
+      final result = await _wasteClassifier.classify(_image!);
 
-      if (labels.isNotEmpty) {
-        // Use the new, smarter mapping logic
-        final Map<String, dynamic> bestMatch = _mapLabelsToBestWasteCategory(labels);
-
-        setState(() {
-          _detectedMaterial = bestMatch['material'];
-          _confidence = bestMatch['confidence'];
-          _updatePricing(_detectedMaterial);
-          _currentStep = 1; 
-        });
-      } else {
-        setState(() {
-          _detectedMaterial = 'Unknown Material';
-          _confidence = 0.0;
-          _currentStep = 1;
-        });
-      }
+      setState(() {
+        _detectedMaterial = result.label;
+        _confidence = result.confidence;
+        _topPredictions = result.topPredictions;
+        _scanGuidance = result.isReliable
+            ? 'Model confidence is good enough to estimate pricing.'
+            : 'Low-confidence result. Retake the photo with a single waste item filling most of the frame.';
+        _updatePricing(result.isReliable ? _detectedMaterial : '');
+        _currentStep = 1;
+      });
     } catch (e) {
       debugPrint('Error processing image: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Waste detection failed for the selected image.'),
+          ),
+        );
+      }
     } finally {
-      setState(() {
-        _isProcessing = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
     }
   }
 
   void _updatePricing(String material) {
-    if (material.contains('Plastic')) {
+    final normalized = material.toLowerCase();
+
+    if (normalized.contains('plastic')) {
       _suggestedPrice = '₹25';
       _priceRange = '₹22 - ₹28';
-    } else if (material.contains('Paper')) {
+    } else if (normalized.contains('paper')) {
       _suggestedPrice = '₹12';
       _priceRange = '₹10 - ₹15';
-    } else if (material.contains('Metal')) {
+    } else if (normalized.contains('metal')) {
       _suggestedPrice = '₹45';
       _priceRange = '₹40 - ₹55';
+    } else if (normalized.contains('e waste') ||
+        normalized.contains('e-waste')) {
+      _suggestedPrice = '₹60';
+      _priceRange = '₹45 - ₹75';
+    } else if (normalized.contains('glass')) {
+      _suggestedPrice = '₹8';
+      _priceRange = '₹5 - ₹10';
+    } else if (normalized.contains('textile')) {
+      _suggestedPrice = '₹18';
+      _priceRange = '₹12 - ₹25';
+    } else if (normalized.contains('rubber')) {
+      _suggestedPrice = '₹20';
+      _priceRange = '₹15 - ₹24';
+    } else if (normalized.contains('wet waste')) {
+      _suggestedPrice = '₹6';
+      _priceRange = '₹4 - ₹8';
     } else {
-      _suggestedPrice = '₹15';
-      _priceRange = '₹10 - ₹20';
+      _suggestedPrice = '₹0';
+      _priceRange = 'Retake scan for pricing';
     }
-  }
-
-  // --- NEW, SMARTER MAPPING LOGIC ---
-  Map<String, dynamic> _mapLabelsToBestWasteCategory(List<ImageLabel> labels) {
-    // Define keywords for each of your categories
-    final Map<String, List<String>> wasteCategoryKeywords = {
-      'Plastic (PET)': ['bottle', 'plastic', 'water bottle', 'polyethylene terephthalate'],
-      'Metal / Aluminum': ['can', 'tin', 'aluminum', 'metal', 'beverage can'],
-      'Paper / Cardboard': ['paper', 'cardboard', 'box', 'paperboard', 'carton', 'envelope'],
-    };
-
-    double bestConfidence = 0.0;
-    String bestCategory = 'Unknown Material';
-
-    // Iterate through all labels returned by ML Kit
-    for (final label in labels) {
-      final currentLabel = label.label.toLowerCase();
-
-      // Check this label against our keyword lists
-      for (final category in wasteCategoryKeywords.keys) {
-        for (final keyword in wasteCategoryKeywords[category]!) {
-          // If a keyword matches, see if it has the highest confidence so far
-          if (currentLabel.contains(keyword)) {
-            if (label.confidence > bestConfidence) {
-              bestConfidence = label.confidence;
-              bestCategory = category;
-            }
-          }
-        }
-      }
-    }
-
-    // If no keyword was matched after checking all labels, fall back to the top result from ML Kit.
-    if (bestCategory == 'Unknown Material' && labels.isNotEmpty) {
-      bestCategory = labels.first.label; // Use the raw label from Google
-      bestConfidence = labels.first.confidence;
-    }
-
-    return {'material': bestCategory, 'confidence': bestConfidence * 100};
   }
 
   @override
@@ -246,11 +223,15 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF00A699),
                       minimumSize: const Size(double.infinity, 54),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
                     ),
                     child: _isProcessing
                         ? const CircularProgressIndicator(color: Colors.white)
-                        : Text(_currentStep == 0 ? 'Start AI Scan' : 'Continue'),
+                        : Text(
+                            _currentStep == 0 ? 'Start AI Scan' : 'Continue',
+                          ),
                   ),
                 ),
               ],
@@ -263,11 +244,16 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
 
   Widget _buildStepContent() {
     switch (_currentStep) {
-      case 0: return _buildPhotoStep();
-      case 1: return _buildDetectStep();
-      case 2: return _buildPriceStep();
-      case 3: return _buildBuyersStep();
-      default: return _buildPhotoStep();
+      case 0:
+        return _buildPhotoStep();
+      case 1:
+        return _buildDetectStep();
+      case 2:
+        return _buildPriceStep();
+      case 3:
+        return _buildBuyersStep();
+      default:
+        return _buildPhotoStep();
     }
   }
 
@@ -279,8 +265,31 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
           style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
-        Text('Point your camera at the waste for instant valuation', 
-          style: TextStyle(color: Colors.grey[600])),
+        Text(
+          'Point your camera at the waste for instant valuation',
+          style: TextStyle(color: Colors.grey[600]),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: _isModelReady
+                ? const Color(0xFFE7F8F6)
+                : const Color(0xFFFFF3E0),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            _isModelReady
+                ? 'Custom waste model is ready. Supported classes: ${_wasteClassifier.supportedLabels.join(', ')}'
+                : 'Loading custom waste detection model...',
+            style: TextStyle(
+              color: _isModelReady
+                  ? const Color(0xFF00695C)
+                  : const Color(0xFF8A5A00),
+            ),
+          ),
+        ),
         const SizedBox(height: 30),
         GestureDetector(
           onTap: () => _pickImage(ImageSource.camera),
@@ -293,8 +302,15 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
               border: Border.all(color: Colors.grey[300]!, width: 2),
             ),
             child: _image != null
-                ? ClipRRect(borderRadius: BorderRadius.circular(18), child: Image.file(_image!, fit: BoxFit.cover))
-                : const Icon(Icons.add_a_photo_outlined, size: 80, color: Colors.grey),
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: Image.file(_image!, fit: BoxFit.cover),
+                  )
+                : const Icon(
+                    Icons.add_a_photo_outlined,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
           ),
         ),
         const SizedBox(height: 20),
@@ -327,10 +343,56 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
         children: [
           const Icon(Icons.auto_awesome, size: 80, color: Color(0xFF00A699)),
           const SizedBox(height: 20),
-          const Text('Scan Result', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+          const Text(
+            'Scan Result',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
           const SizedBox(height: 10),
-          Text(_detectedMaterial, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w900, color: Color(0xFF00A699))),
-          Text('Confidence: ${_confidence.toStringAsFixed(1)}%', style: TextStyle(color: Colors.grey[600])),
+          Text(
+            _detectedMaterial,
+            style: const TextStyle(
+              fontSize: 32,
+              fontWeight: FontWeight.w900,
+              color: Color(0xFF00A699),
+            ),
+          ),
+          Text(
+            'Confidence: ${_confidence.toStringAsFixed(1)}%',
+            style: TextStyle(color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            _scanGuidance,
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+          if (_topPredictions.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Top matches',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.grey[800],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            ..._topPredictions.map(
+              (prediction) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(prediction.label),
+                    Text('${prediction.confidence.toStringAsFixed(1)}%'),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -339,7 +401,10 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   Widget _buildPriceStep() {
     return Column(
       children: [
-        const Text('Estimated Value', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text(
+          'Estimated Value',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 20),
         Container(
           padding: const EdgeInsets.all(30),
@@ -349,8 +414,26 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
           ),
           child: Column(
             children: [
-              Text(_suggestedPrice, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Colors.white)),
-              const Text('per kilogram', style: TextStyle(color: Colors.white70)),
+              Text(
+                _suggestedPrice,
+                style: const TextStyle(
+                  fontSize: 48,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const Text(
+                'per kilogram',
+                style: TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                _priceRange,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
         ),
@@ -361,13 +444,24 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   Widget _buildBuyersStep() {
     return Column(
       children: [
-        const Text('Interested Buyers', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text(
+          'Interested Buyers',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 20),
-        ..._nearbyBuyers.map((b) => ListTile(
-          title: Text(b['name']),
-          subtitle: Text('${b['distance']} away • ${b['rating']} ⭐'),
-          trailing: Text(b['price'], style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF00A699))),
-        )),
+        ..._nearbyBuyers.map(
+          (b) => ListTile(
+            title: Text(b['name']),
+            subtitle: Text('${b['distance']} away • ${b['rating']} ⭐'),
+            trailing: Text(
+              b['price'],
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF00A699),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
@@ -375,7 +469,17 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   void _handleNextStep() {
     if (_currentStep == 0) {
       if (_image == null) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please capture an image')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please capture an image')),
+        );
+        return;
+      }
+      if (!_isModelReady) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('The waste detection model is still loading.'),
+          ),
+        );
         return;
       }
       _processImage();

@@ -1,0 +1,7 @@
+0 plastic
+1 wet waste
+2 paper waste
+3 e-waste
+4 rubber
+5 glass
+6 textile

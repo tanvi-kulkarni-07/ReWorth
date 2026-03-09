@@ -51,5 +51,7 @@
 	<string>We need access to your photo library to identify waste materials from your photos.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>We need access to your microphone for video recording (if used).</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to show your realtime position on the logistics map.</string>
 </dict>
 </plist>

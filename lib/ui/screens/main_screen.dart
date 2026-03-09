@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
 
 class MainScreen extends ConsumerWidget {
-  const MainScreen({Key? key}) : super(key: key);
+  const MainScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Cache the login state to prevent rebuild loops
+    final isLoggedIn = ref.watch(isLoggedInProvider);
+
     return Scaffold(
       body: Container(
         color: const Color(0xFF00A699),
@@ -35,7 +38,7 @@ class MainScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 48),
                 // primary action button
-                if (ref.watch(isLoggedInProvider))
+                if (isLoggedIn)
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.white,

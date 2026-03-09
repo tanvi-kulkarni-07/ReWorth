@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class CreateListingScreen extends ConsumerWidget {
-  const CreateListingScreen({Key? key}) : super(key: key);
+  const CreateListingScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

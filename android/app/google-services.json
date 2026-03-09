@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "416427647660",
+    "project_id": "my-app-ade8a",
+    "storage_bucket": "my-app-ade8a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:416427647660:android:58831ccab6e219fd29b509",
+        "android_client_info": {
+          "package_name": "com.example.reworth"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "416427647660-vifq40ocf80vbukjr6dhfc95hf2nr2ms.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDVjDCK_zsUszkk4YRn7vSwP1PgsRpQDzg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "416427647660-vifq40ocf80vbukjr6dhfc95hf2nr2ms.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

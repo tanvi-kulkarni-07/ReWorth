@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../providers/auth_provider.dart';
 
 class SignupScreen extends ConsumerWidget {
-  const SignupScreen({Key? key}) : super(key: key);
+  const SignupScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -99,22 +100,45 @@ class SignupScreen extends ConsumerWidget {
                             ),
                             padding: const EdgeInsets.symmetric(vertical: 16),
                           ),
-                          onPressed: () {
+                          onPressed: () async {
                             final name = ref.read(signupNameProvider);
                             final email = ref.read(signupEmailProvider);
                             final password = ref.read(signupPasswordProvider);
                             final role = ref.read(signupRoleProvider);
-                            ref
-                                .read(authProvider.notifier)
-                                .signUp(name, email, password, role);
-                            if (ref.read(isLoggedInProvider)) {
-                              ref.read(signupNameProvider.notifier).state = '';
-                              ref.read(signupEmailProvider.notifier).state = '';
-                              ref.read(signupPasswordProvider.notifier).state =
-                                  '';
-                              ref.read(signupRoleProvider.notifier).state =
-                                  'seller';
-                              Navigator.pushNamed(context, '/home');
+                            try {
+                              await ref
+                                  .read(authProvider.notifier)
+                                  .signUp(name, email, password, role);
+                              if (ref.read(isLoggedInProvider)) {
+                                ref.read(signupNameProvider.notifier).state =
+                                    '';
+                                ref.read(signupEmailProvider.notifier).state =
+                                    '';
+                                ref
+                                        .read(signupPasswordProvider.notifier)
+                                        .state =
+                                    '';
+                                ref.read(signupRoleProvider.notifier).state =
+                                    'seller';
+                                Navigator.pushNamed(context, '/home');
+                              }
+                            } catch (e) {
+                              String msg;
+                              if (e is FirebaseAuthException) {
+                                if (e.code == 'email-already-in-use') {
+                                  msg =
+                                      'An account with this email already exists. Please login.';
+                                } else {
+                                  msg = e.message ?? e.code;
+                                }
+                              } else if (e is FirebaseException) {
+                                msg = e.message ?? 'An error occurred';
+                              } else {
+                                msg = e.toString();
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Sign up failed: $msg')),
+                              );
                             }
                           },
                           child: const Text('Sign Up'),

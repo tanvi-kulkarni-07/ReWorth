@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class MarketplaceScreen extends StatefulWidget {
-  const MarketplaceScreen({Key? key}) : super(key: key);
+  const MarketplaceScreen({super.key});
 
   @override
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
@@ -28,13 +28,28 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _showSearchBar = false;
 
+  // cached filtered items - only recompute when filters change
+  List<Map<String, String>> _filteredItems = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _applyFilters();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   // refresh
   Future<void> _refresh() async {
     await Future.delayed(const Duration(milliseconds: 500));
-    setState(() {});
+    // if fetching new data, call _applyFilters() here
   }
 
-  List<Map<String, String>> get _filteredItems {
+  void _applyFilters() {
     var list = _getSampleItems();
     // category filter
     if (_selectedCategory != 'All') {
@@ -51,11 +66,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     }).toList();
     // search
     if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
       list = list
-          .where(
-            (i) =>
-                i['type']!.toLowerCase().contains(_searchQuery.toLowerCase()),
-          )
+          .where((i) => i['type']!.toLowerCase().contains(query))
           .toList();
     }
     // sort
@@ -63,27 +76,27 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       case 'Price: Low to High':
         list.sort(
           (a, b) =>
-              (_parsePrice(a['price']!)).compareTo(_parsePrice(b['price']!)),
+              _parsePrice(a['price']!).compareTo(_parsePrice(b['price']!)),
         );
         break;
       case 'Price: High to Low':
         list.sort(
           (a, b) =>
-              (_parsePrice(b['price']!)).compareTo(_parsePrice(a['price']!)),
+              _parsePrice(b['price']!).compareTo(_parsePrice(a['price']!)),
         );
         break;
       case 'Rating':
         list.sort(
-          (a, b) => (double.parse(
-            b['rating']!,
-          )).compareTo(double.parse(a['rating']!)),
+          (a, b) =>
+              double.parse(b['rating']!).compareTo(double.parse(a['rating']!)),
         );
         break;
       default:
-        // Distance order remains as sample order
         break;
     }
-    return list;
+    setState(() {
+      _filteredItems = list;
+    });
   }
 
   @override
@@ -102,9 +115,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 ),
                 style: const TextStyle(color: Colors.white),
                 onChanged: (v) {
-                  setState(() {
-                    _searchQuery = v;
-                  });
+                  _searchQuery = v;
+                  _applyFilters();
                 },
               )
             : const Text('Marketplace'),
@@ -116,11 +128,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             icon: Icon(_showSearchBar ? Icons.close : Icons.search),
             onPressed: () {
               if (_showSearchBar) {
-                setState(() {
-                  _showSearchBar = false;
-                  _searchQuery = '';
-                  _searchController.clear();
-                });
+                _showSearchBar = false;
+                _searchController.clear();
+                _searchQuery = '';
+                _applyFilters();
               } else {
                 setState(() {
                   _showSearchBar = true;
@@ -153,9 +164,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       label: Text(category),
                       selected: isSelected,
                       onSelected: (selected) {
-                        setState(() {
+                        if (selected && _selectedCategory != category) {
                           _selectedCategory = category;
-                        });
+                          _applyFilters();
+                        }
                       },
                       selectedColor: const Color(0xFF00A699),
                       backgroundColor: Colors.grey[200],
@@ -183,9 +195,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       label: const Text('Verified Only'),
                       deleteIcon: const Icon(Icons.close, size: 18),
                       onDeleted: () {
-                        setState(() {
-                          _verifiedOnly = false;
-                        });
+                        _verifiedOnly = false;
+                        _applyFilters();
                       },
                       backgroundColor: const Color(0xFF00A699).withOpacity(0.1),
                     ),
@@ -197,11 +208,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       label: Text('"$_searchQuery"'),
                       deleteIcon: const Icon(Icons.close, size: 18),
                       onDeleted: () {
-                        setState(() {
-                          _searchQuery = '';
-                          _searchController.clear();
-                          _showSearchBar = false;
-                        });
+                        _searchQuery = '';
+                        _searchController.clear();
+                        _showSearchBar = false;
+                        _applyFilters();
                       },
                       backgroundColor: const Color(0xFF00A699).withOpacity(0.1),
                     ),
@@ -227,9 +237,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         );
                       }).toList(),
                   onChanged: (String? newValue) {
-                    setState(() {
-                      _sortBy = newValue!;
-                    });
+                    if (newValue != null && newValue != _sortBy) {
+                      _sortBy = newValue;
+                      _applyFilters();
+                    }
                   },
                 ),
               ],
@@ -277,6 +288,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
+        heroTag: 'marketplace_fab',
         onPressed: () {
           Navigator.pushNamed(context, '/create_listing');
         },
@@ -557,10 +569,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             _verifiedOnly = false;
                             _priceRange = const RangeValues(0, 100);
                           });
-                          setState(() {
-                            _verifiedOnly = false;
-                            _priceRange = const RangeValues(0, 100);
-                          });
+                          _verifiedOnly = false;
+                          _priceRange = const RangeValues(0, 100);
+                          _applyFilters();
                         },
                         child: const Text('Clear All'),
                       ),
@@ -583,11 +594,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                           setModalState(() {
                             _verifiedOnly = value;
                           });
-                          setState(() {
-                            _verifiedOnly = value;
-                          });
+                          _verifiedOnly = value;
+                          _applyFilters();
                         },
-                        activeColor: const Color(0xFF00A699),
+                        activeThumbColor: const Color(0xFF00A699),
                       ),
                     ],
                   ),
@@ -613,9 +623,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       setModalState(() {
                         _priceRange = values;
                       });
-                      setState(() {
-                        _priceRange = values;
-                      });
+                      _priceRange = values;
+                      _applyFilters();
                     },
                   ),
                   Row(
