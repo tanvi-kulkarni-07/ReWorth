@@ -6,7 +6,7 @@ import '../../providers/auth_provider.dart';
 /// another scaffold (e.g. bottom navigation) or used standalone via
 /// [ProfileScreen].
 class ProfilePage extends ConsumerWidget {
-  const ProfilePage({Key? key}) : super(key: key);
+  const ProfilePage({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -25,10 +25,16 @@ class ProfilePage extends ConsumerWidget {
                     colors: [const Color(0xFF00A699), Colors.blue.shade400],
                   ),
                 ),
-                child: const CircleAvatar(
+                child: CircleAvatar(
                   radius: 50,
-                  backgroundImage: AssetImage('assets/avatar.png'),
+                  backgroundImage: const AssetImage('assets/avatar.png'),
                   backgroundColor: Colors.white,
+                  onBackgroundImageError: (_, __) {},
+                  child: Image.asset(
+                    'assets/avatar.png',
+                    errorBuilder: (c, e, s) =>
+                        const Icon(Icons.person, size: 50),
+                  ),
                 ),
               ),
               Positioned(
@@ -488,7 +494,7 @@ class ProfilePage extends ConsumerWidget {
 
 /// A full screen wrapper around [ProfilePage].
 class ProfileScreen extends ConsumerWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class ImpactWalletScreen extends StatelessWidget {
-  const ImpactWalletScreen({Key? key}) : super(key: key);
+  const ImpactWalletScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -586,7 +586,7 @@ class ImpactWalletScreen extends StatelessWidget {
   }
 
   Widget _buildBarGroup(String month, double greenHeight, double blueHeight) {
-    const maxHeight = 200.0;
+    const maxHeight = 168.0;
     return Column(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [

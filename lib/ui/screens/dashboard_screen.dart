@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/dashboard_providers.dart';
+import '../../providers/auth_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -39,9 +40,9 @@ class DashboardScreen extends ConsumerWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Greeting
-                    const Text(
-                      'Welcome, Tanvi 👋',
-                      style: TextStyle(
+                    Text(
+                      'Welcome, ${ref.watch(userNameProvider) ?? 'User'} 👋',
+                      style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
                         color: Colors.white,
@@ -178,7 +179,7 @@ class DashboardScreen extends ConsumerWidget {
                         const SizedBox(height: 12),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             ),
