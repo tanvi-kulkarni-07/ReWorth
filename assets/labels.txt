@@ -1,7 +1,13 @@
-0 plastic
+0 high_plastic
 1 wet waste
 2 paper waste
 3 e-waste
 4 rubber
 5 glass
 6 textile
+7 crop waste
+8 med_plastic
+9 low_plastic
+10 metal
+11 farm waste
+12 flower waste
