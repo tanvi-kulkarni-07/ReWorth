@@ -11,10 +11,20 @@ class DashboardScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final waste = ref.watch(totalWasteProvider);
-    final carbon = ref.watch(carbonSavedProvider);
-    final earnings = ref.watch(earningsProvider);
     final suggestions = ref.watch(aiSuggestionsProvider);
+
+    // pull current impact stats; use fallback values if still loading
+    final impactAsync = ref.watch(impactStatsProvider);
+    final waste = impactAsync.maybeWhen(
+        data: (stats) => stats.totalWasteRecycled.toStringAsFixed(0),
+        orElse: () => '0');
+    final carbon = impactAsync.maybeWhen(
+        data: (stats) => stats.totalCO2Saved.toStringAsFixed(0),
+        orElse: () => '0');
+    final credits = impactAsync.maybeWhen(
+        data: (stats) => stats.carbonCredits.toStringAsFixed(1),
+        orElse: () => '0');
+    final earnings = ref.watch(earningsProvider);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -64,13 +74,22 @@ class DashboardScreen extends ConsumerWidget {
                             Icons.delete_outline,
                           ),
                         ),
-                        const SizedBox(width: 12),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: _buildStatCard(
                             'Carbon Saved',
                             carbon.toString(),
                             'CO₂ kg',
                             Icons.eco,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _buildStatCard(
+                            'Credits',
+                            credits.toString(),
+                            '',
+                            Icons.stars,
                           ),
                         ),
                       ],
