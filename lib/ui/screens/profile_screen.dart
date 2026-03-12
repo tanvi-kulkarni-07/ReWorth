@@ -287,8 +287,8 @@ class ProfilePage extends ConsumerWidget {
               ),
               onPressed: () {
                 ref.read(authProvider.notifier).logout();
-                Navigator.pushNamedAndRemoveUntil(
-                  context,
+                Navigator.of(context, rootNavigator: true)
+                    .pushNamedAndRemoveUntil(
                   '/main',
                   (route) => false,
                 );
@@ -501,6 +501,7 @@ class ProfileScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
         title: const Text('Profile'),

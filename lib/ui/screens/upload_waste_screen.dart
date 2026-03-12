@@ -4,6 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import '../../services/waste_classifier_service.dart';
+import '../../models/recycler_company.dart';
+import '../../services/recycler_company_service.dart';
+import '../../services/company_data_service.dart';
+import 'recycler_marketplace_screen.dart';
+import 'company_details_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 class UploadWasteScreen extends StatefulWidget {
   const UploadWasteScreen({super.key});
@@ -28,27 +35,18 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   String _scanGuidance = 'Capture a clear image with the waste centered.';
   List<WastePrediction> _topPredictions = const [];
 
-  final List<Map<String, dynamic>> _nearbyBuyers = [
-    {
-      'name': 'EcoRecycle Hub',
-      'distance': '2.3 km',
-      'rating': '4.8',
-      'price': '₹26/kg',
-      'verified': true,
-    },
-    {
-      'name': 'Green Collectors',
-      'distance': '3.1 km',
-      'rating': '4.6',
-      'price': '₹25/kg',
-      'verified': true,
-    },
-  ];
+  /// Companies that match the latest detection; computed when the
+  /// classifier returns a label. Used when we push the results screen.
+  List<RecyclerCompany> _filteredCompanies = [];
+
+  /// all companies loaded from JSON asset; used when filtering results.
+  List<RecyclerCompany> _allCompanies = []; // empty until loaded
 
   @override
   void initState() {
     super.initState();
     _initializeClassifier();
+    _loadCompanies();
   }
 
   Future<void> _initializeClassifier() async {
@@ -115,6 +113,12 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
 
       setState(() {
         _detectedMaterial = result.label;
+        // compute the companies that accept the detected material
+        _filteredCompanies = RecyclerCompanyService.filterByDetectedWaste(
+          _detectedMaterial,
+          source: _allCompanies.isNotEmpty ? _allCompanies : null,
+        );
+
         _confidence = result.confidence;
         _topPredictions = result.topPredictions;
         _scanGuidance = result.isReliable
@@ -138,6 +142,21 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
           _isProcessing = false;
         });
       }
+    }
+  }
+
+
+  /// load the JSON company list once
+  Future<void> _loadCompanies() async {
+    try {
+      final list = await CompanyDataService.loadFromAsset();
+      if (!mounted) return;
+      setState(() {
+        _allCompanies = list;
+      });
+    } catch (e) {
+      debugPrint('Failed to load company list: $e');
+      // leave _allCompanies empty; filter method will fall back to demo list
     }
   }
 
@@ -442,27 +461,105 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   }
 
   Widget _buildBuyersStep() {
+    if (_filteredCompanies.isEmpty) {
+      return const Center(child: Text('No recycling companies available.'));
+    }
+
     return Column(
       children: [
         const Text(
-          'Interested Buyers',
+          'Matching Companies',
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
-        ..._nearbyBuyers.map(
-          (b) => ListTile(
-            title: Text(b['name']),
-            subtitle: Text('${b['distance']} away • ${b['rating']} ⭐'),
-            trailing: Text(
-              b['price'],
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF00A699),
-              ),
-            ),
-          ),
-        ),
+        ..._filteredCompanies.map((c) {
+          return ListTile(
+            title: Text(c.name),
+            subtitle: Text('${c.category} • ${c.city}'),
+            trailing: Text(c.wasteTypes.join(', ')),
+            onTap: () => _showCompanyActions(c),
+          );
+        }).toList(),
       ],
+    );
+  }
+
+  void _showCompanyActions(RecyclerCompany company) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                company.name,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text('Category: ${company.category}'),
+              Text('City: ${company.city}'),
+              Text('Waste types: ${company.wasteTypes.join(', ')}'),
+              Text('Phone: ${company.phone}'),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      // remove spaces and other characters that might break the tel URI
+                      final sanitizedNumber = company.phone.replaceAll(RegExp(r"\s+"), "");
+                      final uri = 'tel:$sanitizedNumber';
+                      if (await canLaunchUrlString(uri)) {
+                        await launchUrlString(uri);
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Unable to open dialer.')),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.phone),
+                    label: const Text('Call Company'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00A699),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      // ensure url has a scheme; Firestore data might omit http(s)
+                      var url = company.website;
+                      if (!url.startsWith('http')) {
+                        url = 'https://$url';
+                      }
+                      if (await canLaunchUrlString(url)) {
+                        await launchUrlString(
+                          url,
+                          mode: LaunchMode.externalApplication,
+                        );
+                      } else {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Could not open website.')),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.language),
+                    label: const Text('Visit Website'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF00A699),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -483,6 +580,9 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
         return;
       }
       _processImage();
+    } else if (_currentStep == 2) {
+      // move to the list view step rather than leaving the screen
+      setState(() => _currentStep++);
     } else if (_currentStep < 3) {
       setState(() => _currentStep++);
     } else {

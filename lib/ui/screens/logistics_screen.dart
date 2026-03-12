@@ -1305,6 +1305,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Smart Logistics'),
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,

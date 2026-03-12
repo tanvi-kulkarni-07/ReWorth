@@ -7,24 +7,58 @@
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reworth/main.dart';
+import 'package:reworth/providers/auth_provider.dart';
+import 'package:reworth/ui/screens/dashboard_screen.dart';
+import 'package:reworth/ui/screens/upload_waste_screen.dart';
+import 'package:reworth/ui/screens/my_listings_screen.dart';
+import 'package:reworth/ui/screens/market_insights_screen.dart';
+
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  testWidgets('app builds', (WidgetTester tester) async {
     await tester.pumpWidget(const MyApp());
+    // basic sanity: material app is present
+    expect(find.byType(MaterialApp), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('dashboard quick actions navigate', (WidgetTester tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          userNameProvider.overrideWithValue('Tester'),
+        ],
+        child: MaterialApp(
+          home: const DashboardScreen(),
+        ),
+      ),
+    );
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // verify initial DashboardScreen present
+    expect(find.byType(DashboardScreen), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // tap upload waste button
+    await tester.tap(find.text('➕ Upload Waste'));
+    await tester.pumpAndSettle();
+    expect(find.byType(UploadWasteScreen), findsOneWidget);
+
+    // go back and try my listings
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(DashboardScreen), findsOneWidget);
+
+    await tester.tap(find.text('📦 My Listings'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MyListingsScreen), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(DashboardScreen), findsOneWidget);
+
+    await tester.ensureVisible(find.text('📊 Market Insights'));
+    await tester.tap(find.text('📊 Market Insights'));
+    await tester.pumpAndSettle();
+    expect(find.byType(MarketInsightsScreen), findsOneWidget);
   });
 }

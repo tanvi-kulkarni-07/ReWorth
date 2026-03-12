@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/dashboard_providers.dart';
 import '../../providers/auth_provider.dart';
+import 'upload_waste_screen.dart';
+import 'my_listings_screen.dart';
+import 'market_insights_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -16,6 +19,7 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Dashboard'),
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
@@ -41,7 +45,7 @@ class DashboardScreen extends ConsumerWidget {
                   children: [
                     // Greeting
                     Text(
-                      'Welcome, ${ref.watch(userNameProvider) ?? 'User'} 👋',
+                      'Welcome, ${ref.watch(userNameProvider) ?? 'User'}',
                       style: const TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -102,7 +106,11 @@ class DashboardScreen extends ConsumerWidget {
                           Icons.cloud_upload,
                           const Color(0xFF00A699),
                           () {
-                            Navigator.pushNamed(context, '/upload_waste');
+                            Navigator.of(context, rootNavigator: true).push(
+                              MaterialPageRoute(
+                                builder: (_) => const UploadWasteScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -114,7 +122,11 @@ class DashboardScreen extends ConsumerWidget {
                           Icons.list_alt,
                           Colors.blue,
                           () {
-                            Navigator.pushNamed(context, '/my_listings');
+                            Navigator.of(context, rootNavigator: true).push(
+                              MaterialPageRoute(
+                                builder: (_) => const MyListingsScreen(),
+                              ),
+                            );
                           },
                         ),
                       ),
@@ -127,7 +139,11 @@ class DashboardScreen extends ConsumerWidget {
                     Icons.analytics,
                     Colors.orange,
                     () {
-                      Navigator.pushNamed(context, '/market_insights');
+                      Navigator.of(context, rootNavigator: true).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MarketInsightsScreen(),
+                        ),
+                      );
                     },
                   ),
                 ],

@@ -16,6 +16,7 @@ import 'ui/screens/impact_wallet_screen.dart';
 import 'ui/screens/profile_screen.dart';
 import 'ui/screens/upload_waste_screen.dart';
 import 'ui/screens/my_listings_screen.dart';
+import 'ui/screens/recycler_map_screen.dart';
 import 'ui/screens/market_insights_screen.dart';
 
 void main() {
@@ -49,6 +50,7 @@ class MyApp extends StatelessWidget {
       '/upload_waste': (c) => const UploadWasteScreen(),
       '/my_listings': (c) => const MyListingsScreen(),
       '/market_insights': (c) => const MarketInsightsScreen(),
+      '/recycler_map': (c) => const RecyclerMapScreen(),
     };
 
     // initialization future for Firebase

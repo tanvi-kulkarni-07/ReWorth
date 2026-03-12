@@ -8,6 +8,7 @@ class ImpactWalletScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         title: const Text('Impact Wallet'),
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
@@ -252,11 +253,14 @@ class ImpactWalletScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Monthly Environmental Impact',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
+                      Flexible(
+                        child: const Text(
+                          'Monthly Environmental Impact',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       Container(
