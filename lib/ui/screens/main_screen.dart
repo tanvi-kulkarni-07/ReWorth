@@ -96,6 +96,10 @@ class MainScreen extends ConsumerWidget {
           ),
         ),
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => Navigator.pushNamed(context, '/chat'),
+        child: const Icon(Icons.chat),
+      ),
     );
   }
 }

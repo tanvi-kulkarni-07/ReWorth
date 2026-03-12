@@ -72,9 +72,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     if (_selectedWaste != 'All') {
       final cat = _selectedWaste.toLowerCase();
       list = list
-          .where((c) => c.wasteTypes
-              .map((w) => w.toLowerCase())
-              .any((w) => w.contains(cat)))
+          .where(
+            (c) => c.wasteTypes
+                .map((w) => w.toLowerCase())
+                .any((w) => w.contains(cat)),
+          )
           .toList();
     }
     if (_verifiedOnly) {
@@ -85,9 +87,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       list = list.where((c) {
         return c.name.toLowerCase().contains(q) ||
             c.city.toLowerCase().contains(q) ||
-            c.wasteTypes
-                .map((w) => w.toLowerCase())
-                .any((w) => w.contains(q));
+            c.wasteTypes.map((w) => w.toLowerCase()).any((w) => w.contains(q));
       }).toList();
     }
     setState(() {
@@ -107,7 +107,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             children: [
               Text(
                 company.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text('Address: ${company.address}'),
@@ -119,7 +122,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                 children: [
                   ElevatedButton.icon(
                     onPressed: () async {
-                      final uri = 'tel:${company.phone.replaceAll(RegExp(r"\s+"), "")}';
+                      final uri =
+                          'tel:${company.phone.replaceAll(RegExp(r"\s+"), "")}';
                       if (await canLaunchUrlString(uri)) {
                         await launchUrlString(uri);
                       }
@@ -139,8 +143,9 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         }
                         if (await canLaunchUrlString(url)) {
                           await launchUrlString(
-                              url,
-                              mode: LaunchMode.externalApplication);
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
                         }
                       },
                       icon: const Icon(Icons.language),
@@ -174,8 +179,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Filters',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Filters',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
                   TextButton(
                     onPressed: () {
                       _verifiedOnly = false;
@@ -292,24 +299,26 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             child: _isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _filteredCompanies.isEmpty
-                    ? const Center(child: Text('No companies found'))
-                    : ListView.builder(
-                        padding: const EdgeInsets.all(12),
-                        itemCount: _filteredCompanies.length,
-                        itemBuilder: (context, idx) {
-                          final c = _filteredCompanies[idx];
-                          return Card(
-                            margin: const EdgeInsets.symmetric(vertical: 6),
-                            child: ListTile(
-                              title: Text(c.name),
-                              subtitle: Text('${c.category}\n${c.city}\n${c.phone}'),
-                              isThreeLine: true,
-                              trailing: Text(c.wasteTypes.join(', ')),
-                              onTap: () => _showCompanyDetails(c),
-                            ),
-                          );
-                        },
-                      ),
+                ? const Center(child: Text('No companies found'))
+                : ListView.builder(
+                    padding: const EdgeInsets.all(12),
+                    itemCount: _filteredCompanies.length,
+                    itemBuilder: (context, idx) {
+                      final c = _filteredCompanies[idx];
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 6),
+                        child: ListTile(
+                          title: Text(c.name),
+                          subtitle: Text(
+                            '${c.category}\n${c.city}\n${c.phone}',
+                          ),
+                          isThreeLine: true,
+                          trailing: Text(c.wasteTypes.join(', ')),
+                          onTap: () => _showCompanyDetails(c),
+                        ),
+                      );
+                    },
+                  ),
           ),
         ],
       ),

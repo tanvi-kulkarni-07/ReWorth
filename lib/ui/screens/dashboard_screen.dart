@@ -2,205 +2,262 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/dashboard_providers.dart';
 import '../../providers/auth_provider.dart';
+import '../shared_ui.dart';
 import 'upload_waste_screen.dart';
 import 'my_listings_screen.dart';
 import 'market_insights_screen.dart';
+import 'marketplace_screen.dart';
+import 'logistics_screen.dart';
+import 'profile_screen.dart';
 
-class DashboardScreen extends ConsumerWidget {
+class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final waste = ref.watch(totalWasteProvider);
-    final carbon = ref.watch(carbonSavedProvider);
-    final earnings = ref.watch(earningsProvider);
-    final suggestions = ref.watch(aiSuggestionsProvider);
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  @override
+  Widget build(BuildContext context) {
+    final double waste = ref.watch(dashboardTotalWasteProvider).toDouble();
+    final double carbon = ref.watch(dashboardCarbonSavedProvider).toDouble();
+    final double earnings = ref.watch(dashboardEarningsProvider).toDouble();
+    final suggestionsAsync = ref.watch(realTimeAISuggestionsProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey[100],
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         automaticallyImplyLeading: false,
-        title: const Text('Dashboard'),
-        backgroundColor: const Color(0xFF00A699),
+        title: const Text(
+          'ReWorth Dashboard',
+          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+        ),
+        backgroundColor: Colors.transparent,
         foregroundColor: Colors.white,
         elevation: 0,
+        centerTitle: true,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Top Section - Greeting and Stats
-            Container(
-              decoration: const BoxDecoration(
-                color: Color(0xFF00A699),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(30),
-                  bottomRight: Radius.circular(30),
+      floatingActionButton: FloatingActionButton(
+        backgroundColor: ReWorthUI.accentGreen,
+        onPressed: () =>
+            Navigator.of(context, rootNavigator: true).pushNamed('/chat'),
+        child: const Icon(Icons.chat, color: Colors.white),
+      ),
+      body: Container(
+        decoration: const BoxDecoration(gradient: ReWorthUI.backgroundGradient),
+        child: SafeArea(
+          bottom: false,
+          child: _buildDashboardContent(
+            waste,
+            carbon,
+            earnings,
+            suggestionsAsync,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDashboardContent(
+    double waste,
+    double carbon,
+    double earnings,
+    AsyncValue<List<Map<String, dynamic>>> suggestionsAsync,
+  ) {
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Welcome back,',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                 ),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Text(
+                  ref.watch(userNameProvider) ?? 'Eco Warrior',
+                  style: const TextStyle(
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                // Stats Grid
+                Row(
                   children: [
-                    // Greeting
-                    Text(
-                      'Welcome, ${ref.watch(userNameProvider) ?? 'User'}',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                    Expanded(
+                      child: _buildStatCard(
+                        'Waste Collected',
+                        waste.toString(),
+                        'kg',
+                        Icons.recycling,
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    // Stats Cards
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildStatCard(
-                            'Total Waste Sold',
-                            waste.toString(),
-                            'kg',
-                            Icons.delete_outline,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: _buildStatCard(
-                            'Carbon Saved',
-                            carbon.toString(),
-                            'CO₂ kg',
-                            Icons.eco,
-                          ),
-                        ),
-                      ],
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: _buildStatCard(
+                        'Carbon Offset',
+                        carbon.toString(),
+                        'kg CO₂',
+                        Icons.eco,
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    _buildEarningsCard(earnings),
                   ],
                 ),
+                const SizedBox(height: 16),
+                _buildEarningsCard(earnings),
+              ],
+            ),
+          ),
+
+          // Main Content Area with White Background and Rounded Corners
+          Container(
+            width: double.infinity,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(40),
+                topRight: Radius.circular(40),
               ),
             ),
-
-            // Middle Section - Quick Action Buttons
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
+            padding: const EdgeInsets.symmetric(vertical: 30),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Quick Actions
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 24),
+                  child: Text(
                     'Quick Actions',
                     style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Color(0xFF1A1A1A),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  Row(
+                ),
+                const SizedBox(height: 20),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Expanded(
-                        child: _buildActionButton(
-                          context,
-                          '➕ Upload Waste',
-                          Icons.cloud_upload,
-                          const Color(0xFF00A699),
-                          () {
-                            Navigator.of(context, rootNavigator: true).push(
-                              MaterialPageRoute(
-                                builder: (_) => const UploadWasteScreen(),
-                              ),
-                            );
-                          },
+                      _buildQuickAction(
+                        'Upload',
+                        Icons.add_a_photo,
+                        ReWorthUI.accentGreen,
+                        () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) => const UploadWasteScreen(),
+                          ),
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildActionButton(
-                          context,
-                          '📦 My Listings',
-                          Icons.list_alt,
-                          Colors.blue,
-                          () {
-                            Navigator.of(context, rootNavigator: true).push(
-                              MaterialPageRoute(
-                                builder: (_) => const MyListingsScreen(),
-                              ),
-                            );
-                          },
+                      _buildQuickAction(
+                        'Listings',
+                        Icons.inventory_2,
+                        Colors.blue,
+                        () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MyListingsScreen(),
+                          ),
+                        ),
+                      ),
+                      _buildQuickAction(
+                        'Insights',
+                        Icons.bar_chart,
+                        Colors.orange,
+                        () => Navigator.of(context, rootNavigator: true).push(
+                          MaterialPageRoute(
+                            builder: (_) => const MarketInsightsScreen(),
+                          ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  _buildActionButton(
-                    context,
-                    '📊 Market Insights',
-                    Icons.analytics,
-                    Colors.orange,
-                    () {
-                      Navigator.of(context, rootNavigator: true).push(
-                        MaterialPageRoute(
-                          builder: (_) => const MarketInsightsScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
+                ),
 
-            // Bottom Section - AI Suggestions
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+                const SizedBox(height: 32),
+
+                // AI Insights
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Row(
                     children: [
                       const Icon(
-                        Icons.lightbulb,
+                        Icons.auto_awesome,
                         color: Colors.amber,
                         size: 24,
                       ),
                       const SizedBox(width: 8),
                       const Text(
-                        'AI Suggestions',
+                        'AI Smart Insights',
                         style: TextStyle(
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                          color: Color(0xFF1A1A1A),
                         ),
+                      ),
+                      const Spacer(),
+                      IconButton(
+                        onPressed: () =>
+                            ref.invalidate(realTimeAISuggestionsProvider),
+                        icon: const Icon(
+                          Icons.refresh,
+                          color: Colors.grey,
+                          size: 20,
+                        ),
+                        tooltip: 'Refresh AI Insights',
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  // dynamic list
-                  ...suggestions.map((item) {
-                    return Column(
-                      children: [
-                        GestureDetector(
-                          onTap: () {
-                            // simple tap feedback
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text(item['text'] as String)),
-                            );
-                          },
-                          child: _buildAISuggestionCard(
-                            item['text'] as String,
-                            item['tag'] as String,
-                            item['color'] as Color,
-                          ),
+                ),
+                const SizedBox(height: 8),
+                suggestionsAsync.when(
+                  data: (suggestionsList) => ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    itemCount: suggestionsList.length,
+                    itemBuilder: (context, index) {
+                      final item = suggestionsList[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildAISuggestionCard(
+                          item['text'] as String,
+                          item['tag'] as String,
+                          item['color'] as Color,
                         ),
-                        const SizedBox(height: 12),
-                      ],
-                    );
-                  }),
-                ],
-              ),
+                      );
+                    },
+                  ),
+                  loading: () => const Center(
+                    child: Padding(
+                      padding: EdgeInsets.all(24),
+                      child: CircularProgressIndicator(),
+                    ),
+                  ),
+                  error: (err, stack) => const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      'Failed to load real-time insights.',
+                      style: TextStyle(color: Colors.redAccent),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -212,38 +269,53 @@ class DashboardScreen extends ConsumerWidget {
     IconData icon,
   ) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+      padding: const EdgeInsets.all(20),
+      decoration: ReWorthUI.cardDecoration.copyWith(
+        color: Colors.white.withOpacity(0.15),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.white, size: 24),
-          const SizedBox(height: 12),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.2),
+              shape: BoxShape.circle,
             ),
+            child: Icon(icon, color: Colors.white, size: 20),
           ),
-          Text(
-            unit,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white.withOpacity(0.9),
-            ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 4),
+                child: Text(
+                  unit,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 4),
           Text(
             title,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.white.withOpacity(0.8),
+              color: Colors.white.withOpacity(0.7),
+              fontWeight: FontWeight.w500,
             ),
           ),
         ],
@@ -254,38 +326,40 @@ class DashboardScreen extends ConsumerWidget {
   Widget _buildEarningsCard(double earnings) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.3), width: 1),
+      padding: const EdgeInsets.all(24),
+      decoration: ReWorthUI.cardDecoration.copyWith(
+        color: Colors.white.withOpacity(0.15),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Total Earnings',
-                style: TextStyle(fontSize: 14, color: Colors.white),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                '₹12,450',
-                style: TextStyle(
-                  fontSize: 32,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Total Impact Earnings',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.white.withOpacity(0.8),
+                  ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 8),
+                const Text(
+                  '₹12,450.00',
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: Colors.white.withOpacity(0.2),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
             child: const Icon(
               Icons.account_balance_wallet,
@@ -298,43 +372,34 @@ class DashboardScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildActionButton(
-    BuildContext context,
+  Widget _buildQuickAction(
     String label,
     IconData icon,
     Color color,
-    VoidCallback onPressed,
+    VoidCallback onTap,
   ) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onPressed,
-        borderRadius: BorderRadius.circular(16),
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: LinearGradient(
-              colors: [color.withOpacity(0.1), color.withOpacity(0.05)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+            color: color.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: color.withOpacity(0.15)),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, color: color, size: 24),
-              const SizedBox(width: 12),
-              Flexible(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                  textAlign: TextAlign.center,
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: color.withOpacity(0.8),
                 ),
               ),
             ],
@@ -345,67 +410,68 @@ class DashboardScreen extends ConsumerWidget {
   }
 
   Widget _buildAISuggestionCard(String text, String tag, Color tagColor) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [Colors.white, tagColor.withOpacity(0.05)],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[100]!),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 4,
-              height: 60,
-              decoration: BoxDecoration(
-                color: tagColor,
-                borderRadius: BorderRadius.circular(2),
-              ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: tagColor.withOpacity(0.1),
+              shape: BoxShape.circle,
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 4,
-                    ),
-                    decoration: BoxDecoration(
-                      color: tagColor.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text(
-                      tag,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                        color: tagColor,
-                      ),
+            child: Icon(Icons.lightbulb_outline, color: tagColor, size: 20),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: tagColor.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    tag.toUpperCase(),
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      color: tagColor,
+                      letterSpacing: 0.5,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    text,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      color: Colors.black87,
-                      height: 1.4,
-                    ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  text,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF4A4A4A),
+                    height: 1.4,
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
-          ],
-        ),
+          ),
+          Icon(Icons.chevron_right, color: Colors.grey[300]),
+        ],
       ),
     );
   }

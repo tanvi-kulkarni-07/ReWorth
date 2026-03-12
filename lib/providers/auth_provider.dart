@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 /// Simple model representing authentication information.
 class AuthState {
@@ -128,8 +129,51 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final auth = _auth;
     if (auth == null) return;
     await auth.signOut();
+    await GoogleSignIn().signOut();
     await _clearPrefs();
     state = const AuthState();
+  }
+
+  Future<void> signInWithGoogle() async {
+    final auth = _auth;
+    if (auth == null) return;
+    try {
+      final googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return;
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await auth.signInWithCredential(credential);
+      final user = userCredential.user;
+
+      if (user != null) {
+        // Prepare state from Google User
+        state = state.copyWith(
+          isLoggedIn: true,
+          email: user.email,
+          name: user.displayName,
+          role: 'seller', // Default role for Google Sign-In
+        );
+        _savePrefs(state);
+
+        // Sync to Firestore if needed
+        const docId = 'reworth_4_users';
+        await _firestore.collection('user').doc(docId).set({
+          'uid': user.uid,
+          'name': user.displayName,
+          'email': user.email,
+          'role': 'seller',
+          'lastLogin': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      rethrow;
+    }
   }
 
   Future<void> signUp(
@@ -178,7 +222,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         name: name,
         role: role,
       );
-    _savePrefs(state);
+      _savePrefs(state);
     } on FirebaseAuthException catch (e) {
       state = state.copyWith(error: e.message);
       rethrow;
@@ -188,7 +232,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
   /// Look up the role/email for an authenticated user from Firestore.
   /// Since documents are stored with an auto‑ID, we query by email.
   Future<AuthState> _buildStateFromUser(User user) async {
-  
     String? role;
     try {
       const docId = 'reworth_4_users';
@@ -235,7 +278,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _prefs!.clear();
   }
 }
-
 
 /// Global auth provider.
 final authProvider = StateNotifierProvider<AuthNotifier, AuthState>(

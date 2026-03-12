@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 // if you generated firebase_options via FlutterFire CLI, uncomment below
 // import 'firebase_options.dart';
+
+// provider containing onboarding state
+import 'providers/auth_provider.dart';
+
 import 'ui/screens/splash_screen.dart';
 import 'ui/screens/main_screen.dart';
 import 'ui/screens/login_screen.dart';
@@ -18,18 +22,25 @@ import 'ui/screens/upload_waste_screen.dart';
 import 'ui/screens/my_listings_screen.dart';
 import 'ui/screens/recycler_map_screen.dart';
 import 'ui/screens/market_insights_screen.dart';
+import 'ui/screens/chat_screen.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('dotenv.load failed: $e');
+  }
   // run the app immediately; Firebase will be initialized within the widget tree
   runApp(const ProviderScope(child: MyApp()));
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends ConsumerWidget {
   const MyApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // you can flip this constant during development (or load from
     // environment/shared_preferences) to bypass the splash screen.
     const bool skipSplash = true; // <-- set to false to restore splash
@@ -51,6 +62,8 @@ class MyApp extends StatelessWidget {
       '/my_listings': (c) => const MyListingsScreen(),
       '/market_insights': (c) => const MarketInsightsScreen(),
       '/recycler_map': (c) => const RecyclerMapScreen(),
+      // debugging/chat route
+      '/chat': (c) => ChatScreen(),
     };
 
     // initialization future for Firebase
@@ -80,8 +93,17 @@ class MyApp extends StatelessWidget {
             );
           }
 
-          // Firebase is initialized; return the initial screen
-          return skipSplash ? const MainScreen() : const SplashScreen();
+          // Firebase is initialized; choose starting screen based on login state
+          final loggedIn = ref.watch(isLoggedInProvider);
+          if (!loggedIn) {
+            final hasSeen = ref.watch(hasSeenOnboardingProvider);
+            if (!hasSeen) {
+              return const OnboardingScreen();
+            }
+            return const LoginScreen();
+          }
+          // user is authenticated, send them to HomeScreen (which contains PersistentBottomNavBar)
+          return const HomeScreen();
         },
       ),
       routes: routes,

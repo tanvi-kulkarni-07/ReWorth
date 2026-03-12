@@ -287,11 +287,10 @@ class ProfilePage extends ConsumerWidget {
               ),
               onPressed: () {
                 ref.read(authProvider.notifier).logout();
-                Navigator.of(context, rootNavigator: true)
-                    .pushNamedAndRemoveUntil(
-                  '/main',
-                  (route) => false,
-                );
+                Navigator.of(
+                  context,
+                  rootNavigator: true,
+                ).pushNamedAndRemoveUntil('/main', (route) => false);
               },
               icon: const Icon(Icons.logout),
               label: const Text(

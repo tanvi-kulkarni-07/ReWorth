@@ -145,7 +145,6 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
     }
   }
 
-
   /// load the JSON company list once
   Future<void> _loadCompanies() async {
     try {
@@ -496,7 +495,10 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
             children: [
               Text(
                 company.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text('Category: ${company.category}'),
@@ -510,14 +512,19 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
                   ElevatedButton.icon(
                     onPressed: () async {
                       // remove spaces and other characters that might break the tel URI
-                      final sanitizedNumber = company.phone.replaceAll(RegExp(r"\s+"), "");
+                      final sanitizedNumber = company.phone.replaceAll(
+                        RegExp(r"\s+"),
+                        "",
+                      );
                       final uri = 'tel:$sanitizedNumber';
                       if (await canLaunchUrlString(uri)) {
                         await launchUrlString(uri);
                       } else {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Unable to open dialer.')),
+                            const SnackBar(
+                              content: Text('Unable to open dialer.'),
+                            ),
                           );
                         }
                       }
@@ -543,7 +550,9 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
                       } else {
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Could not open website.')),
+                            const SnackBar(
+                              content: Text('Could not open website.'),
+                            ),
                           );
                         }
                       }
