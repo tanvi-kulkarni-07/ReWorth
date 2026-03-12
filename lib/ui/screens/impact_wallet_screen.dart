@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/dashboard_providers.dart';
 
-class ImpactWalletScreen extends StatelessWidget {
+class ImpactWalletScreen extends ConsumerWidget {
   const ImpactWalletScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -76,9 +78,14 @@ class ImpactWalletScreen extends StatelessWidget {
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Text(
-                        '1,247',
-                        style: TextStyle(
+                      Text(
+                        // show credits from provider
+                        ref.watch(impactStatsProvider).maybeWhen(
+                              data: (stats) => stats.carbonCredits
+                                  .toStringAsFixed(0),
+                              orElse: () => '0',
+                            ),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontSize: 56,
                           fontWeight: FontWeight.bold,
@@ -152,7 +159,11 @@ class ImpactWalletScreen extends StatelessWidget {
                         child: _buildMetricCard(
                           '📉',
                           'CO₂ Reduced',
-                          '2.4 tons',
+                          ref.watch(impactStatsProvider).maybeWhen(
+                                data: (stats) =>
+                                    '${(stats.totalCO2Saved / 1000).toStringAsFixed(1)} tons',
+                                orElse: () => '0 tons',
+                              ),
                           'This year',
                           Colors.green,
                         ),

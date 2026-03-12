@@ -8,6 +8,19 @@ final dashboardTotalWasteProvider = StateProvider<int>((ref) => 245);
 final dashboardCarbonSavedProvider = StateProvider<int>((ref) => 128);
 final dashboardEarningsProvider = StateProvider<double>((ref) => 12450);
 
+class ImpactStats {
+  final double carbonCredits;
+  final double totalCO2Saved;
+
+  ImpactStats({required this.carbonCredits, required this.totalCO2Saved});
+}
+
+final impactStatsProvider = FutureProvider<ImpactStats>((ref) async {
+  // Mocking some async impact data
+  await Future.delayed(const Duration(milliseconds: 500));
+  return ImpactStats(carbonCredits: 1250, totalCO2Saved: 5400);
+});
+
 final realTimeAISuggestionsProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) async {
       final openRouter = OpenRouterService();

@@ -11,27 +11,37 @@ import 'recycler_marketplace_screen.dart';
 import 'company_details_screen.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../services/carbon_impact_service.dart';
+import '../../providers/dashboard_providers.dart';
+import 'company_detail_screen.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class UploadWasteScreen extends StatefulWidget {
+class UploadWasteScreen extends ConsumerStatefulWidget {
   const UploadWasteScreen({super.key});
 
   @override
-  State<UploadWasteScreen> createState() => _UploadWasteScreenState();
+  ConsumerState<UploadWasteScreen> createState() => _UploadWasteScreenState();
 }
 
-class _UploadWasteScreenState extends State<UploadWasteScreen> {
+class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
+  // latest weight entered by user (kg) - used to calculate total value
+  double _lastLoggedWeight = 0;
+  double _enteredWeight = 0; // weight typed by user in price step
   int _currentStep = 0;
   bool _isProcessing = false;
   bool _isModelReady = false;
   File? _image;
   final ImagePicker _picker = ImagePicker();
   final WasteClassifierService _wasteClassifier = WasteClassifierService();
+  final TextEditingController _weightController = TextEditingController();
 
   // AI Detection Results
   String _detectedMaterial = 'Scanning...';
   double _confidence = 0.0;
   String _suggestedPrice = '₹0';
   String _priceRange = '₹0 - ₹0';
+  double _pricePerKg = 0; // used for per-kg mapping
   String _scanGuidance = 'Capture a clear image with the waste centered.';
   List<WastePrediction> _topPredictions = const [];
 
@@ -41,6 +51,35 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
 
   /// all companies loaded from JSON asset; used when filtering results.
   List<RecyclerCompany> _allCompanies = []; // empty until loaded
+
+  // helpers exposed for widget tests
+  @visibleForTesting
+  List<RecyclerCompany> get testFilteredCompanies => _filteredCompanies;
+
+  @visibleForTesting
+  double get testPricePerKg => _pricePerKg;
+
+  @visibleForTesting
+  void testSetFilteredCompanies(List<RecyclerCompany> list) {
+    setState(() {
+      _filteredCompanies = list;
+    });
+  }
+
+  @visibleForTesting
+  void testSetDetectedMaterial(String m) {
+    setState(() {
+      _detectedMaterial = m;
+      _updatePricing(m);
+    });
+  }
+
+  @visibleForTesting
+  void testSetCurrentStep(int s) {
+    setState(() {
+      _currentStep = s;
+    });
+  }
 
   @override
   void initState() {
@@ -76,6 +115,7 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   @override
   void dispose() {
     _wasteClassifier.close();
+    _weightController.dispose();
     super.dispose();
   }
 
@@ -162,31 +202,29 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   void _updatePricing(String material) {
     final normalized = material.toLowerCase();
 
+    // simple mapping provided by specification
     if (normalized.contains('plastic')) {
-      _suggestedPrice = '₹25';
-      _priceRange = '₹22 - ₹28';
+      _pricePerKg = 20;
     } else if (normalized.contains('paper')) {
-      _suggestedPrice = '₹12';
-      _priceRange = '₹10 - ₹15';
+      _pricePerKg = 12;
     } else if (normalized.contains('metal')) {
-      _suggestedPrice = '₹45';
-      _priceRange = '₹40 - ₹55';
-    } else if (normalized.contains('e waste') ||
+      _pricePerKg = 40;
+    } else if (normalized.contains('electronics') ||
+        normalized.contains('e waste') ||
         normalized.contains('e-waste')) {
-      _suggestedPrice = '₹60';
-      _priceRange = '₹45 - ₹75';
-    } else if (normalized.contains('glass')) {
-      _suggestedPrice = '₹8';
-      _priceRange = '₹5 - ₹10';
-    } else if (normalized.contains('textile')) {
-      _suggestedPrice = '₹18';
-      _priceRange = '₹12 - ₹25';
-    } else if (normalized.contains('rubber')) {
-      _suggestedPrice = '₹20';
-      _priceRange = '₹15 - ₹24';
-    } else if (normalized.contains('wet waste')) {
-      _suggestedPrice = '₹6';
-      _priceRange = '₹4 - ₹8';
+      _pricePerKg = 50;
+    } else if (normalized.contains('organic') ||
+        normalized.contains('wet waste') ||
+        normalized.contains('food')) {
+      _pricePerKg = 5;
+    } else {
+      _pricePerKg = 0;
+    }
+
+    // update strings used elsewhere
+    if (_pricePerKg > 0) {
+      _suggestedPrice = '₹${_pricePerKg.toStringAsFixed(0)}';
+      _priceRange = '₹${(_pricePerKg - 2).toStringAsFixed(0)} - ₹${(_pricePerKg + 2).toStringAsFixed(0)}';
     } else {
       _suggestedPrice = '₹0';
       _priceRange = 'Retake scan for pricing';
@@ -356,68 +394,86 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
   }
 
   Widget _buildDetectStep() {
-    return Center(
-      child: Column(
-        children: [
-          const Icon(Icons.auto_awesome, size: 80, color: Color(0xFF00A699)),
-          const SizedBox(height: 20),
-          const Text(
-            'Scan Result',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+    return Column(
+      children: [
+        Center(
+          child: Column(
+            children: [
+              const Icon(Icons.auto_awesome, size: 80, color: Color(0xFF00A699)),
+              const SizedBox(height: 20),
+              const Text(
+                'Scan Result',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                _detectedMaterial,
+                style: const TextStyle(
+                  fontSize: 32,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF00A699),
+                ),
+              ),
+              Text(
+                'Confidence: ${_confidence.toStringAsFixed(1)}%',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _scanGuidance,
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey[700]),
+              ),
+              if (_topPredictions.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Top matches',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.grey[800],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ..._topPredictions.map(
+                  (prediction) => Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(prediction.label),
+                        Text('${prediction.confidence.toStringAsFixed(1)}%'),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 10),
-          Text(
-            _detectedMaterial,
-            style: const TextStyle(
-              fontSize: 32,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF00A699),
+        ),
+        if (_filteredCompanies.isNotEmpty) ...[
+          const SizedBox(height: 30),
+          const Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              'Matching Companies',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-          ),
-          Text(
-            'Confidence: ${_confidence.toStringAsFixed(1)}%',
-            style: TextStyle(color: Colors.grey[600]),
           ),
           const SizedBox(height: 12),
-          Text(
-            _scanGuidance,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[700]),
-          ),
-          if (_topPredictions.isNotEmpty) ...[
-            const SizedBox(height: 20),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: Text(
-                'Top matches',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  color: Colors.grey[800],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            ..._topPredictions.map(
-              (prediction) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(prediction.label),
-                    Text('${prediction.confidence.toStringAsFixed(1)}%'),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          ..._filteredCompanies.map(_buildCompanyCard),
         ],
-      ),
+      ],
     );
   }
 
   Widget _buildPriceStep() {
+    final total = (_enteredWeight * _pricePerKg);
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
           'Estimated Value',
@@ -452,9 +508,40 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              const SizedBox(height: 4),
+              if (_pricePerKg > 0)
+                Text(
+                  'Estimated value for 1 kg: ₹${_pricePerKg.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                  ),
+                ),
             ],
           ),
         ),
+        const SizedBox(height: 24),
+        if (_pricePerKg > 0) ...[
+          const Text('Enter weight (kg)', style: TextStyle(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          TextField(
+            controller: _weightController,
+            keyboardType: TextInputType.numberWithOptions(decimal: true),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              hintText: 'e.g. 1.5',
+            ),
+            onChanged: (val) {
+              final w = double.tryParse(val) ?? 0;
+              setState(() {
+                _enteredWeight = w;
+              });
+            },
+          ),
+          const SizedBox(height: 12),
+          if (_enteredWeight > 0)
+            Text('Total estimate: ₹${total.toStringAsFixed(0)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+        ],
       ],
     );
   }
@@ -471,15 +558,81 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
           style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 20),
-        ..._filteredCompanies.map((c) {
-          return ListTile(
-            title: Text(c.name),
-            subtitle: Text('${c.category} • ${c.city}'),
-            trailing: Text(c.wasteTypes.join(', ')),
-            onTap: () => _showCompanyActions(c),
-          );
-        }).toList(),
+        ..._filteredCompanies.map(_buildCompanyCard),
       ],
+    );
+  }
+
+  Widget _buildCompanyCard(RecyclerCompany c) {
+    final priceKg = _pricePerKg;
+    final priceStr = priceKg > 0 ? '₹${priceKg.toStringAsFixed(0)}/kg' : 'N/A';
+
+    // keep these outside of the builder so they persist across rebuilds
+    double localWeight = 0;
+    final controller = TextEditingController();
+
+    return StatefulBuilder(
+      builder: (context, setLocalState) {
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(c.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 6),
+                Text('${c.category} • ${c.city}'),
+                const SizedBox(height: 6),
+                Text('Phone: ${c.phone}'),
+                Text('Website: ${c.website}'),
+                const SizedBox(height: 6),
+                Text('Price/kg: $priceStr'),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: controller,
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  decoration: const InputDecoration(
+                    labelText: 'Weight (kg)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (val) {
+                    final w = double.tryParse(val) ?? 0;
+                    setLocalState(() {
+                      localWeight = w;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                ElevatedButton(
+                  onPressed: () {
+                    if (localWeight <= 0 || priceKg <= 0) return;
+                    final total = localWeight * priceKg;
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => CompanyDetailScreen(
+                          company: c,
+                          weight: localWeight,
+                          totalValue: total,
+                          pricePerKg: priceKg,
+                        ),
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00A699),
+                    minimumSize: const Size(double.infinity, 44),
+                  ),
+                  child: const Text('View Details'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -572,6 +725,15 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
     );
   }
 
+
+  @visibleForTesting
+  void testSetEnteredWeight(double w) {
+    setState(() {
+      _enteredWeight = w;
+      _weightController.text = w.toString();
+    });
+  }
+
   void _handleNextStep() {
     if (_currentStep == 0) {
       if (_image == null) {
@@ -590,12 +752,23 @@ class _UploadWasteScreenState extends State<UploadWasteScreen> {
       }
       _processImage();
     } else if (_currentStep == 2) {
-      // move to the list view step rather than leaving the screen
+      // record transaction once weight has been entered
+      if (_enteredWeight <= 0 || _pricePerKg <= 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a valid weight to continue.')),
+        );
+        return;
+      }
+      recordRecyclingTransaction(
+        wasteType: _detectedMaterial,
+        weightKg: _enteredWeight,
+      ).catchError((_) {});
+      _lastLoggedWeight = _enteredWeight;
+      ref.refresh(impactStatsProvider);
       setState(() => _currentStep++);
     } else if (_currentStep < 3) {
       setState(() => _currentStep++);
     } else {
       Navigator.pop(context);
     }
-  }
-}
+  }}

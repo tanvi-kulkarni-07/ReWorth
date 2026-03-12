@@ -79,6 +79,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
           )
           .toList();
     }
+    // always sort alphabetically by name for consistent order
+    list.sort((a, b) => a.name.compareTo(b.name));
     if (_verifiedOnly) {
       list = list.where((c) => c.isVerified).toList();
     }
@@ -218,6 +220,60 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     );
   }
 
+  Widget _buildMarketplaceCard(RecyclerCompany c) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      elevation: 3,
+      child: InkWell(
+        onTap: () => _showCompanyDetails(c),
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      c.name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  if (c.isVerified)
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 20,
+                    ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text('${c.category} • ${c.city}'),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 6,
+                children: c.wasteTypes
+                    .map(
+                      (w) => Chip(
+                        label: Text(w),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -305,18 +361,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                     itemCount: _filteredCompanies.length,
                     itemBuilder: (context, idx) {
                       final c = _filteredCompanies[idx];
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          title: Text(c.name),
-                          subtitle: Text(
-                            '${c.category}\n${c.city}\n${c.phone}',
-                          ),
-                          isThreeLine: true,
-                          trailing: Text(c.wasteTypes.join(', ')),
-                          onTap: () => _showCompanyDetails(c),
-                        ),
-                      );
+                      return _buildMarketplaceCard(c);
                     },
                   ),
           ),
