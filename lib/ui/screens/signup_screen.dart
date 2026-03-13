@@ -58,74 +58,123 @@ class SignupScreen extends ConsumerWidget {
                     decoration: ReWorthUI.cardDecoration,
                     child: Column(
                       children: [
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(signupNameProvider.notifier).state = v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Full Name',
-                            Icons.person_outline,
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref.read(signupNameProvider.notifier).state = v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Full Name',
+                                  Icons.person_outline,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
                           ),
                         ),
                         const SizedBox(height: 16),
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(signupEmailProvider.notifier).state = v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Email',
-                            Icons.email_outlined,
-                          ),
-                          keyboardType: TextInputType.emailAddress,
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(signupPasswordProvider.notifier).state =
-                                  v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Password',
-                            Icons.lock_outline,
-                          ),
-                          obscureText: true,
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(signupPhoneProvider.notifier).state = v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Phone',
-                            Icons.phone_outlined,
-                          ),
-                          keyboardType: TextInputType.phone,
-                        ),
-                        const SizedBox(height: 16),
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(signupLocationProvider.notifier).state = v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Location',
-                            Icons.location_on_outlined,
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref.read(signupEmailProvider.notifier).state =
+                                    v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Email',
+                                  Icons.email_outlined,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                            keyboardType: TextInputType.emailAddress,
                           ),
                         ),
                         const SizedBox(height: 16),
-                        DropdownButtonFormField<String>(
-                          value: ref.watch(signupRoleProvider),
-                          items: const [
-                            DropdownMenuItem(
-                              value: 'seller',
-                              child: Text('Seller'),
-                            ),
-                            DropdownMenuItem(
-                              value: 'buyer',
-                              child: Text('Buyer'),
-                            ),
-                          ],
-                          onChanged: (v) {
-                            if (v != null)
-                              ref.read(signupRoleProvider.notifier).state = v;
-                          },
-                          decoration: ReWorthUI.inputDecoration(
-                            'Role',
-                            Icons.work_outline,
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref
+                                        .read(signupPasswordProvider.notifier)
+                                        .state =
+                                    v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Password',
+                                  Icons.lock_outline,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                            obscureText: true,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref.read(signupPhoneProvider.notifier).state =
+                                    v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Phone',
+                                  Icons.phone_outlined,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                            keyboardType: TextInputType.phone,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref
+                                        .read(signupLocationProvider.notifier)
+                                        .state =
+                                    v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Location',
+                                  Icons.location_on_outlined,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        GradientOutline(
+                          child: DropdownButtonFormField<String>(
+                            value: ref.watch(signupRoleProvider),
+                            items: const [
+                              DropdownMenuItem(
+                                value: 'seller',
+                                child: Text('Seller'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'buyer',
+                                child: Text('Buyer'),
+                              ),
+                            ],
+                            onChanged: (v) {
+                              if (v != null)
+                                ref.read(signupRoleProvider.notifier).state = v;
+                            },
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Role',
+                                  Icons.work_outline,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
                           ),
                         ),
                       ],
@@ -147,7 +196,14 @@ class SignupScreen extends ConsumerWidget {
                       try {
                         await ref
                             .read(authProvider.notifier)
-                            .signUp(name, email, password, role, phone, location);
+                            .signUp(
+                              name,
+                              email,
+                              password,
+                              role,
+                              phone,
+                              location,
+                            );
                         if (ref.read(isLoggedInProvider)) {
                           ref.read(signupNameProvider.notifier).state = '';
                           ref.read(signupEmailProvider.notifier).state = '';
@@ -187,7 +243,6 @@ class SignupScreen extends ConsumerWidget {
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),

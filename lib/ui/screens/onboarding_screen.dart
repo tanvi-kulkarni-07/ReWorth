@@ -113,10 +113,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                     onTap: _goToLogin,
                     child: Text(
                       _pages[_currentIndex].secondaryText!,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        decoration: TextDecoration.underline,
-                      ),
+                      style: const TextStyle(color: Colors.white70),
                     ),
                   ),
                 ),

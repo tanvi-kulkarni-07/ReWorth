@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:persistent_bottom_nav_bar/persistent_bottom_nav_bar.dart';
 import 'dashboard_screen.dart';
 import 'marketplace_screen.dart';
 import 'logistics_screen.dart';
@@ -19,14 +18,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  late PersistentTabController _controller;
+  int _currentIndex = 0;
   String? _lastRole;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = PersistentTabController(initialIndex: 0);
-  }
 
   List<Widget> _buildScreens(String? role) {
     if (role == 'seller') {
@@ -35,7 +28,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         UploadWasteScreen(),
         MyListingsScreen(),
         ImpactWalletScreen(), // earnings
-        ProfileScreen(),
+        ProfilePage(),
       ];
     }
     // default to buyer (or null) - include orders and wallet separately
@@ -45,122 +38,119 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       LogisticsScreen(),
       MyOrdersScreen(),
       ImpactWalletScreen(),
-      ProfileScreen(),
+      ProfilePage(),
     ];
   }
 
-  List<PersistentBottomNavBarItem> _navBarsItems(String? role) {
+  List<NavigationDestination> _navBarDestinations(String? role) {
     if (role == 'seller') {
-      return [
-        PersistentBottomNavBarItem(
-          icon: const Icon(Icons.dashboard),
-          title: "Dashboard",
-          activeColorPrimary: const Color(0xFF00A699),
-          inactiveColorPrimary: Colors.grey,
+      return const [
+        NavigationDestination(
+          icon: Icon(Icons.dashboard_outlined),
+          selectedIcon: Icon(Icons.dashboard),
+          label: 'Dashboard',
         ),
-        PersistentBottomNavBarItem(
-          icon: const Icon(Icons.add_a_photo),
-          title: "Upload",
-          activeColorPrimary: const Color(0xFF00A699),
-          inactiveColorPrimary: Colors.grey,
+        NavigationDestination(
+          icon: Icon(Icons.add_a_photo_outlined),
+          selectedIcon: Icon(Icons.add_a_photo),
+          label: 'Upload',
         ),
-        PersistentBottomNavBarItem(
-          icon: const Icon(Icons.inventory_2),
-          title: "Listings",
-          activeColorPrimary: const Color(0xFF00A699),
-          inactiveColorPrimary: Colors.grey,
+        NavigationDestination(
+          icon: Icon(Icons.inventory_2_outlined),
+          selectedIcon: Icon(Icons.inventory_2),
+          label: 'Listings',
         ),
-        PersistentBottomNavBarItem(
-          icon: const Icon(Icons.account_balance_wallet),
-          title: "Earnings",
-          activeColorPrimary: const Color(0xFF00A699),
-          inactiveColorPrimary: Colors.grey,
+        NavigationDestination(
+          icon: Icon(Icons.account_balance_wallet_outlined),
+          selectedIcon: Icon(Icons.account_balance_wallet),
+          label: 'Earnings',
         ),
-        PersistentBottomNavBarItem(
-          icon: const Icon(Icons.person),
-          title: "Profile",
-          activeColorPrimary: const Color(0xFF00A699),
-          inactiveColorPrimary: Colors.grey,
+        NavigationDestination(
+          icon: Icon(Icons.person_outline),
+          selectedIcon: Icon(Icons.person),
+          label: 'Profile',
         ),
       ];
     }
-    // buyer
-    return [
-      PersistentBottomNavBarItem(
-        icon: const Icon(Icons.dashboard),
-        title: "Dashboard",
-        activeColorPrimary: const Color(0xFF00A699),
-        inactiveColorPrimary: Colors.grey,
+    return const [
+      NavigationDestination(
+        icon: Icon(Icons.dashboard_outlined),
+        selectedIcon: Icon(Icons.dashboard),
+        label: 'Dashboard',
       ),
-      PersistentBottomNavBarItem(
-        icon: const Icon(Icons.storefront),
-        title: "Marketplace",
-        activeColorPrimary: const Color(0xFF00A699),
-        inactiveColorPrimary: Colors.grey,
+      NavigationDestination(
+        icon: Icon(Icons.storefront_outlined),
+        selectedIcon: Icon(Icons.storefront),
+        label: 'Marketplace',
       ),
-      PersistentBottomNavBarItem(
-        icon: const Icon(Icons.local_shipping),
-        title: "Logistics",
-        activeColorPrimary: const Color(0xFF00A699),
-        inactiveColorPrimary: Colors.grey,
+      NavigationDestination(
+        icon: Icon(Icons.local_shipping_outlined),
+        selectedIcon: Icon(Icons.local_shipping),
+        label: 'Logistics',
       ),
-      PersistentBottomNavBarItem(
-        icon: const Icon(Icons.receipt_long),
-        title: "Orders",
-        activeColorPrimary: const Color(0xFF00A699),
-        inactiveColorPrimary: Colors.grey,
+      NavigationDestination(
+        icon: Icon(Icons.receipt_long_outlined),
+        selectedIcon: Icon(Icons.receipt_long),
+        label: 'Orders',
       ),
-      PersistentBottomNavBarItem(
-        icon: const Icon(Icons.account_balance_wallet),
-        title: "Wallet",
-        activeColorPrimary: const Color(0xFF00A699),
-        inactiveColorPrimary: Colors.grey,
+      NavigationDestination(
+        icon: Icon(Icons.account_balance_wallet_outlined),
+        selectedIcon: Icon(Icons.account_balance_wallet),
+        label: 'Wallet',
       ),
-      PersistentBottomNavBarItem(
-        icon: const Icon(Icons.person),
-        title: "Profile",
-        activeColorPrimary: const Color(0xFF00A699),
-        inactiveColorPrimary: Colors.grey,
+      NavigationDestination(
+        icon: Icon(Icons.person_outline),
+        selectedIcon: Icon(Icons.person),
+        label: 'Profile',
       ),
     ];
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer(builder: (context, ref, _) {
-      final role = ref.watch(userRoleProvider);
-      final screens = _buildScreens(role);
-      final items = _navBarsItems(role);
+    return Consumer(
+      builder: (context, ref, _) {
+        final role = ref.watch(userRoleProvider);
+        final screens = _buildScreens(role);
+        final destinations = _navBarDestinations(role);
 
-      // If the role changed (and thus the number of tabs), reset the controller.
-      if (role != _lastRole) {
-        _lastRole = role;
-        _controller = PersistentTabController(initialIndex: 0);
-      }
+        if (role != _lastRole) {
+          _lastRole = role;
+          _currentIndex = 0;
+        }
 
-      return PersistentTabView(
-        context,
-        controller: _controller,
-        screens: screens,
-        items: items,
-        confineToSafeArea: true,
-        backgroundColor: Colors.white,
-        handleAndroidBackButtonPress: true,
-        resizeToAvoidBottomInset: true,
-        stateManagement: true,
-        hideNavigationBarWhenKeyboardAppears: true,
-        navBarStyle: NavBarStyle.style1,
-        // optional height settings
-        navBarHeight: 60,
-        // animation settings (default is fine)
-        animationSettings: const NavBarAnimationSettings(
-          screenTransitionAnimation: ScreenTransitionAnimationSettings(
-            animateTabTransition: true,
-            duration: Duration(milliseconds: 200),
-            curve: Curves.ease,
+        if (_currentIndex >= screens.length) {
+          _currentIndex = 0;
+        }
+
+        return Scaffold(
+          body: IndexedStack(index: _currentIndex, children: screens),
+          bottomNavigationBar: NavigationBarTheme(
+            data: NavigationBarThemeData(
+              indicatorColor: const Color(0xFF00A699).withOpacity(0.16),
+              labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((
+                states,
+              ) {
+                final isSelected = states.contains(WidgetState.selected);
+                return TextStyle(
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                  color: isSelected ? const Color(0xFF00A699) : Colors.grey,
+                );
+              }),
+            ),
+            child: NavigationBar(
+              backgroundColor: Colors.white,
+              selectedIndex: _currentIndex,
+              destinations: destinations,
+              onDestinationSelected: (index) {
+                setState(() {
+                  _currentIndex = index;
+                });
+              },
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }

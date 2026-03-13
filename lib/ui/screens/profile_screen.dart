@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/dashboard_providers.dart';
 
 /// A widget containing the profile information; can be embedded inside
 /// another scaffold (e.g. bottom navigation) or used standalone via
 /// [ProfileScreen].
-class ProfilePage extends ConsumerWidget {
+class ProfilePage extends ConsumerStatefulWidget {
   const ProfilePage({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfilePage> createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends ConsumerState<ProfilePage> {
+  bool _showAllInsights = false;
+
+  @override
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(20),
       child: Column(
         children: [
@@ -206,23 +215,69 @@ class ProfilePage extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 16),
-                _buildInsightItem(
-                  '📈 Best time to sell plastic: Next 2 weeks',
-                  'Market demand is rising',
-                  Colors.green,
-                ),
-                const SizedBox(height: 12),
-                _buildInsightItem(
-                  '💰 Your waste value increased 12% this month',
-                  'Keep up the great work!',
-                  Colors.blue,
-                ),
-                const SizedBox(height: 12),
-                _buildInsightItem(
-                  '🎯 Organic waste prices peak on weekends',
-                  'Plan your listings accordingly',
-                  Colors.orange,
-                ),
+                // Fetch insights from OpenAI (via OpenRouter) and display a list
+                ref
+                    .watch(realTimeAISuggestionsProvider)
+                    .when(
+                      data: (insights) {
+                        final displayItems = _showAllInsights
+                            ? insights
+                            : insights.take(3).toList();
+
+                        return Column(
+                          children: [
+                            ...displayItems.map(
+                              (insight) => Padding(
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _buildInsightItem(
+                                  insight['text'] as String? ??
+                                      'Insight not available',
+                                  insight['tag'] as String? ?? '',
+                                  insight['color'] as Color? ??
+                                      Colors.blueAccent,
+                                ),
+                              ),
+                            ),
+                            if (insights.length > 3)
+                              TextButton(
+                                onPressed: () {
+                                  setState(() {
+                                    _showAllInsights = !_showAllInsights;
+                                  });
+                                },
+                                child: Text(
+                                  _showAllInsights ? 'Show less' : 'Show all',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        );
+                      },
+                      loading: () => const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: CircularProgressIndicator(),
+                        ),
+                      ),
+                      error: (err, stack) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildInsightItem(
+                            'Unable to load insights',
+                            err.toString(),
+                            Colors.red,
+                          ),
+                          const SizedBox(height: 12),
+                          _buildInsightItem(
+                            'Try again later or check your API key settings.',
+                            'Settings',
+                            Colors.orange,
+                          ),
+                        ],
+                      ),
+                    ),
               ],
             ),
           ),
@@ -265,7 +320,10 @@ class ProfilePage extends ConsumerWidget {
               children: [
                 _buildDetailRow('Email', ref.watch(userEmailProvider) ?? ''),
                 _buildDetailRow('Phone', ref.watch(userPhoneProvider) ?? ''),
-                _buildDetailRow('Location', ref.watch(userLocationProvider) ?? ''),
+                _buildDetailRow(
+                  'Location',
+                  ref.watch(userLocationProvider) ?? '',
+                ),
                 _buildDetailRow('Member Since', 'Jan 2026'),
               ],
             ),
@@ -510,7 +568,7 @@ class ProfileScreen extends ConsumerWidget {
           IconButton(icon: const Icon(Icons.settings), onPressed: () {}),
         ],
       ),
-      body: const ProfilePage(),
+      body: const SafeArea(child: ProfilePage()),
     );
   }
 }

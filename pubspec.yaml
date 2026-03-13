@@ -54,6 +54,9 @@ flutter:
   assets:
     - .env
     - assets/reworth_logo.png
+    - assets/img1.jpg
+    - assets/img2.jpg
+    - assets/img3.jpg
     - assets/model_unquant.tflite
     - assets/labels.txt
     - assets/companies.json

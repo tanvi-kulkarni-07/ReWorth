@@ -44,17 +44,77 @@ class ReWorthUI {
       fillColor: Colors.grey[100],
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: accentGreen, width: 2),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
+        borderSide: const BorderSide(color: accentGreen, width: 2),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(16),
         borderSide: const BorderSide(color: Color(0xFF0091EA), width: 2),
       ),
       labelStyle: const TextStyle(color: Colors.black54),
+    );
+  }
+}
+
+/// A wrapper that adds a gradient border around a widget and switches to a solid
+/// accent blue border when the child is focused.
+class GradientOutline extends StatefulWidget {
+  const GradientOutline({
+    super.key,
+    required this.child,
+    this.borderRadius = 16,
+    this.borderWidth = 2,
+    this.focusedBorderColor = ReWorthUI.accentBlue,
+    this.gradient = ReWorthUI.backgroundGradient,
+  });
+
+  final Widget child;
+  final double borderRadius;
+  final double borderWidth;
+  final Color focusedBorderColor;
+  final Gradient gradient;
+
+  @override
+  State<GradientOutline> createState() => _GradientOutlineState();
+}
+
+class _GradientOutlineState extends State<GradientOutline> {
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Focus(
+      onFocusChange: (hasFocus) {
+        if (hasFocus != _focused) {
+          setState(() {
+            _focused = hasFocus;
+          });
+        }
+      },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: EdgeInsets.all(widget.borderWidth),
+        decoration: BoxDecoration(
+          color: _focused ? Colors.transparent : null,
+          gradient: _focused ? null : widget.gradient,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          border: _focused
+              ? Border.all(
+                  color: widget.focusedBorderColor,
+                  width: widget.borderWidth,
+                )
+              : null,
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(
+            widget.borderRadius - widget.borderWidth,
+          ),
+          child: widget.child,
+        ),
+      ),
     );
   }
 }

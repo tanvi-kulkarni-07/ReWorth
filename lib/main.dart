@@ -99,12 +99,14 @@ class MyApp extends ConsumerWidget {
 
           // Firebase is initialized; choose starting screen based on login state
           final loggedIn = ref.watch(isLoggedInProvider);
+          final hasSeen = ref.watch(hasSeenOnboardingProvider);
           if (!loggedIn) {
-            final hasSeen = ref.watch(hasSeenOnboardingProvider);
             if (!hasSeen) {
               return const OnboardingScreen();
             }
-            return const LoginScreen();
+            // Show the welcome/main screen when logged out instead of going
+            // straight to the login screen.
+            return const MainScreen();
           }
           // user is authenticated, send them to HomeScreen (which contains PersistentBottomNavBar)
           return const HomeScreen();

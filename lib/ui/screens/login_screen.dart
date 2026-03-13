@@ -57,25 +57,39 @@ class LoginScreen extends ConsumerWidget {
                     decoration: ReWorthUI.cardDecoration,
                     child: Column(
                       children: [
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(loginEmailProvider.notifier).state = v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Email',
-                            Icons.email_outlined,
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref.read(loginEmailProvider.notifier).state = v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Email',
+                                  Icons.email_outlined,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                            keyboardType: TextInputType.emailAddress,
                           ),
-                          keyboardType: TextInputType.emailAddress,
                         ),
                         const SizedBox(height: 16),
-                        TextField(
-                          onChanged: (v) =>
-                              ref.read(loginPasswordProvider.notifier).state =
-                                  v,
-                          decoration: ReWorthUI.inputDecoration(
-                            'Password',
-                            Icons.lock_outline,
+                        GradientOutline(
+                          child: TextField(
+                            onChanged: (v) =>
+                                ref.read(loginPasswordProvider.notifier).state =
+                                    v,
+                            decoration:
+                                ReWorthUI.inputDecoration(
+                                  'Password',
+                                  Icons.lock_outline,
+                                ).copyWith(
+                                  border: InputBorder.none,
+                                  enabledBorder: InputBorder.none,
+                                  focusedBorder: InputBorder.none,
+                                ),
+                            obscureText: true,
                           ),
-                          obscureText: true,
                         ),
                         const SizedBox(height: 12),
                         Align(
@@ -101,20 +115,24 @@ class LoginScreen extends ConsumerWidget {
                       final email = ref.read(loginEmailProvider);
                       final password = ref.read(loginPasswordProvider);
                       try {
-                        await ref.read(authProvider.notifier).login(email, password);
+                        await ref
+                            .read(authProvider.notifier)
+                            .login(email, password);
                         if (ref.read(isLoggedInProvider)) {
                           ref.read(loginEmailProvider.notifier).state = '';
                           ref.read(loginPasswordProvider.notifier).state = '';
                           Navigator.pushReplacementNamed(context, '/home');
                         } else {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Invalid credentials')),
+                            const SnackBar(
+                              content: Text('Invalid credentials'),
+                            ),
                           );
                         }
                       } catch (e) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(e.toString())),
-                        );
+                        ScaffoldMessenger.of(
+                          context,
+                        ).showSnackBar(SnackBar(content: Text(e.toString())));
                       }
                     },
                     child: const Text('LOGIN'),
@@ -171,7 +189,6 @@ class LoginScreen extends ConsumerWidget {
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
-                            decoration: TextDecoration.underline,
                           ),
                         ),
                       ),
