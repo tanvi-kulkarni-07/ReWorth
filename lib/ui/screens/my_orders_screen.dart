@@ -1,27 +1,24 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/listing_providers.dart';
+import '../../data/order_data.dart';
 import '../../providers/auth_provider.dart';
 import 'dashboard_screen.dart';
 
-/// Buyer orders page - shows orders placed by the current user.
 class MyOrdersScreen extends ConsumerWidget {
   const MyOrdersScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(userRoleProvider);
-    // Allow null role in tests (no auth context), but enforce buyer vs seller in real usage.
-    if (role != null && role != 'buyer') {
+    if (role != 'buyer') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => DashboardScreen()),
         );
       });
       return const SizedBox.shrink();
     }
 
-    final orders = ref.watch(ordersProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Orders'),
@@ -34,7 +31,7 @@ class MyOrdersScreen extends ConsumerWidget {
               padding: const EdgeInsets.all(16),
               itemCount: orders.length,
               itemBuilder: (context, index) {
-                final o = orders[index];
+                final order = orders[index];
                 return Card(
                   margin: const EdgeInsets.only(bottom: 12),
                   child: Padding(
@@ -42,14 +39,14 @@ class MyOrdersScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(o.wasteType,
+                        Text(order['wasteType'] ?? '',
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Text('Weight: ${o.weight} kg'),
-                        Text('Seller: ${o.sellerName}'),
-                        Text('Company: ${o.companyName}'),
-                        Text('Status: ${o.status}'),
+                        const SizedBox(height: 8),
+                        Text('Quantity: '),
+                        Text('Seller: '),
+                        Text('Company: '),
+                        Text('Status: '),
                       ],
                     ),
                   ),

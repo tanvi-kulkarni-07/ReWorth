@@ -18,6 +18,12 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(userRoleProvider);
+    final isBuyer = role == 'buyer';
+    final name = ref.watch(userNameProvider) ?? 'Unknown';
+    final phone = ref.watch(userPhoneProvider) ?? '';
+    final location = ref.watch(userLocationProvider) ?? '';
+
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.all(20),
@@ -70,7 +76,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(
-                ref.watch(userNameProvider) ?? 'Unknown',
+                name,
                 style: const TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -102,94 +108,83 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 8),
           Text(
-            ref.watch(userRoleProvider) ?? 'Eco Seller',
+            role ?? 'Eco Seller',
             style: const TextStyle(color: Colors.grey, fontSize: 15),
           ),
           const SizedBox(height: 8),
-          // Industry Rating
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.star, color: Colors.amber[700], size: 20),
-              const SizedBox(width: 4),
-              const Text(
-                '4.8',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                '(125 reviews)',
-                style: TextStyle(color: Colors.grey, fontSize: 13),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
-          // Seller Performance Card
-          _buildSectionCard(
-            'Seller Performance',
-            Icons.trending_up,
-            Column(
+          if (!isBuyer) ...[
+            // Industry Rating
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildPerformanceItem(
-                        'Total Sales',
-                        '₹45,230',
-                        Icons.currency_rupee,
-                        Colors.green,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildPerformanceItem(
-                        'Items Sold',
-                        '87',
-                        Icons.shopping_bag,
-                        Colors.blue,
-                      ),
-                    ),
-                  ],
+                Icon(Icons.star, color: Colors.amber[700], size: 20),
+                const SizedBox(width: 4),
+                const Text(
+                  '4.8',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _buildPerformanceItem(
-                        'Avg Response',
-                        '< 2 hrs',
-                        Icons.access_time,
-                        Colors.orange,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _buildPerformanceItem(
-                        'Success Rate',
-                        '98%',
-                        Icons.check_circle,
-                        const Color(0xFF00A699),
-                      ),
-                    ),
-                  ],
+                const SizedBox(width: 4),
+                const Text(
+                  '(125 reviews)',
+                  style: TextStyle(color: Colors.grey, fontSize: 13),
                 ),
               ],
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 24),
+          ],
 
-          // AI Business Insights Card
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.purple.shade50, Colors.blue.shade50],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
+          if (!isBuyer) ...[
+            // Seller Performance Card
+            _buildSectionCard(
+              'Seller Performance',
+              Icons.trending_up,
+              Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildPerformanceItem(
+                          'Total Sales',
+                          '₹45,230',
+                          Icons.currency_rupee,
+                          Colors.green,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildPerformanceItem(
+                          'Items Sold',
+                          '87',
+                          Icons.shopping_bag,
+                          Colors.blue,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildPerformanceItem(
+                          'Avg Response',
+                          '< 2 hrs',
+                          Icons.access_time,
+                          Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildPerformanceItem(
+                          'Success Rate',
+                          '98%',
+                          Icons.check_circle,
+                          const Color(0xFF00A699),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.purple.shade200, width: 1),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -283,34 +278,93 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
           ),
           const SizedBox(height: 16),
 
-          // Transaction History
-          _buildSectionCard(
-            'Recent Transactions',
-            Icons.history,
-            Column(
-              children: [
-                _buildTransactionItem(
-                  'Plastic Bottles',
-                  '₹450',
-                  '2 days ago',
-                  true,
+            // AI Business Insights Card
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Colors.purple.shade50, Colors.blue.shade50],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                 ),
-                _buildTransactionItem(
-                  'Metal Scraps',
-                  '₹1,200',
-                  '5 days ago',
-                  true,
-                ),
-                _buildTransactionItem('Cardboard', '₹320', '1 week ago', true),
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('View All Transactions'),
-                ),
-              ],
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.purple.shade200, width: 1),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.purple.shade100,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: const Text('🧠', style: TextStyle(fontSize: 24)),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text(
+                        'AI Business Insights',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInsightItem(
+                    '📈 Best time to sell plastic: Next 2 weeks',
+                    'Market demand is rising',
+                    Colors.green,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInsightItem(
+                    '💰 Your waste value increased 12% this month',
+                    'Keep up the great work!',
+                    Colors.blue,
+                  ),
+                  const SizedBox(height: 12),
+                  _buildInsightItem(
+                    '🎯 Organic waste prices peak on weekends',
+                    'Plan your listings accordingly',
+                    Colors.orange,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
+
+            // Transaction History
+            _buildSectionCard(
+              'Recent Transactions',
+              Icons.history,
+              Column(
+                children: [
+                  _buildTransactionItem(
+                    'Plastic Bottles',
+                    '₹450',
+                    '2 days ago',
+                    true,
+                  ),
+                  _buildTransactionItem(
+                    'Metal Scraps',
+                    '₹1,200',
+                    '5 days ago',
+                    true,
+                  ),
+                  _buildTransactionItem('Cardboard', '₹320', '1 week ago', true),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: () {},
+                    child: const Text('View All Transactions'),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Account Details
           _buildSectionCard(
@@ -318,12 +372,11 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
             Icons.person,
             Column(
               children: [
+                _buildDetailRow('Name', name),
                 _buildDetailRow('Email', ref.watch(userEmailProvider) ?? ''),
-                _buildDetailRow('Phone', ref.watch(userPhoneProvider) ?? ''),
-                _buildDetailRow(
-                  'Location',
-                  ref.watch(userLocationProvider) ?? '',
-                ),
+                _buildDetailRow('Phone', phone),
+                _buildDetailRow('Location', location),
+                _buildDetailRow('Role', role ?? ''),
                 _buildDetailRow('Member Since', 'Jan 2026'),
               ],
             ),

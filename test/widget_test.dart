@@ -14,6 +14,7 @@ import 'package:reworth/ui/screens/dashboard_screen.dart';
 import 'package:reworth/ui/screens/upload_waste_screen.dart';
 import 'package:reworth/ui/screens/my_listings_screen.dart';
 import 'package:reworth/ui/screens/market_insights_screen.dart';
+import 'package:reworth/ui/screens/pickup_requests_screen.dart';
 
 
 void main() {
@@ -36,11 +37,17 @@ void main() {
       ),
     );
 
+    // Ensure any async initialization is complete.
+    await tester.pumpAndSettle();
+
     // verify initial DashboardScreen present
     expect(find.byType(DashboardScreen), findsOneWidget);
 
+    // Scroll a bit to bring quick action buttons into view.
+    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -250));
+    await tester.pumpAndSettle();
+
     // tap upload waste button
-    await tester.ensureVisible(find.text('Upload'));
     await tester.tap(find.text('Upload'));
     await tester.pumpAndSettle();
     expect(find.byType(UploadWasteScreen), findsOneWidget);
@@ -50,7 +57,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(DashboardScreen), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Listings'));
     await tester.tap(find.text('Listings'));
     await tester.pumpAndSettle();
     expect(find.byType(MyListingsScreen), findsOneWidget);
@@ -59,9 +65,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(DashboardScreen), findsOneWidget);
 
-    await tester.ensureVisible(find.text('Insights'));
-    await tester.tap(find.text('Insights'));
+    await tester.tap(find.text('Requests'));
     await tester.pumpAndSettle();
-    expect(find.byType(MarketInsightsScreen), findsOneWidget);
+    expect(find.byType(PickupRequestsScreen), findsOneWidget);
   });
 }

@@ -168,14 +168,24 @@ class Order {
   final double weight;
   final String sellerName;
   final String companyName;
-  String status; // pending, accepted, completed
+  final String sellerLocation;
+  String status;
+  final String pickupLocation;
+  final String pickupDate;
+  final String pickupTime;
+  final String progressStatus;
 
   Order({
     required this.wasteType,
     required this.weight,
     required this.sellerName,
     required this.companyName,
+    required this.sellerLocation,
     this.status = 'pending',
+    this.pickupLocation = '',
+    this.pickupDate = '',
+    this.pickupTime = '',
+    this.progressStatus = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -183,7 +193,12 @@ class Order {
         'weight': weight,
         'sellerName': sellerName,
         'companyName': companyName,
+        'sellerLocation': sellerLocation,
         'status': status,
+        'pickupLocation': pickupLocation,
+        'pickupDate': pickupDate,
+        'pickupTime': pickupTime,
+        'progressStatus': progressStatus,
       };
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -192,7 +207,12 @@ class Order {
       weight: (json['weight'] as num).toDouble(),
       sellerName: json['sellerName'] as String,
       companyName: json['companyName'] as String,
+      sellerLocation: json['sellerLocation'] as String,
       status: json['status'] as String? ?? 'pending',
+      pickupLocation: json['pickupLocation'] as String? ?? '',
+      pickupDate: json['pickupDate'] as String? ?? '',
+      pickupTime: json['pickupTime'] as String? ?? '',
+      progressStatus: json['progressStatus'] as String? ?? '',
     );
   }
 }
@@ -214,6 +234,35 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
       } catch (_) {
         state = [];
       }
+    } else {
+      // Provide some sample orders for buyers to see in the UI.
+      state = [
+        Order(
+          wasteType: 'Banana Tree Waste',
+          weight: 10000,
+          sellerName: 'Farmer Ramesh Patil',
+          companyName: 'Green Agro Recycling Ltd',
+          sellerLocation: 'Jalgaon, Maharashtra',
+          status: 'Confirmed',
+          pickupLocation: 'Jalgaon, Maharashtra',
+          pickupDate: '22 March 2026',
+          pickupTime: '10:30 AM',
+          progressStatus: 'Pickup Scheduled',
+        ),
+        Order(
+          wasteType: 'Plastic Bottles',
+          weight: 2000,
+          sellerName: 'Scrap Dealer Amit Sharma',
+          companyName: 'EcoPlastic Industries',
+          sellerLocation: 'Pune, Maharashtra',
+          status: 'Rejected',
+          pickupLocation: '',
+          pickupDate: '',
+          pickupTime: '',
+          progressStatus: '',
+        ),
+      ];
+      await _save();
     }
   }
 
@@ -225,6 +274,26 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
 
   void addOrder(Order order) {
     state = [...state, order];
+    _save();
+  }
+
+  void updateOrderStatus(int index, String status) {
+    final copy = [...state];
+    if (index < 0 || index >= copy.length) return;
+    final oldOrder = copy[index];
+    copy[index] = Order(
+      wasteType: oldOrder.wasteType,
+      weight: oldOrder.weight,
+      sellerName: oldOrder.sellerName,
+      companyName: oldOrder.companyName,
+      sellerLocation: oldOrder.sellerLocation,
+      status: status,
+      pickupLocation: oldOrder.pickupLocation,
+      pickupDate: oldOrder.pickupDate,
+      pickupTime: oldOrder.pickupTime,
+      progressStatus: oldOrder.progressStatus,
+    );
+    state = copy;
     _save();
   }
 }

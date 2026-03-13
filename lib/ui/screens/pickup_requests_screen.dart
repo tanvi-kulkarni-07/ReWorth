@@ -1,30 +1,28 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/listing_providers.dart';
+import '../../data/order_data.dart';
 import '../../providers/auth_provider.dart';
 import 'dashboard_screen.dart';
 
-/// Seller pickup requests page.
 class PickupRequestsScreen extends ConsumerWidget {
   const PickupRequestsScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final role = ref.watch(userRoleProvider);
-    // Allow null role in tests (no auth context), but enforce buyer vs seller in real usage.
-    if (role != null && role != 'seller') {
+    if (role != 'seller') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => DashboardScreen()),
         );
       });
       return const SizedBox.shrink();
     }
 
-    final requests = ref.watch(pickupRequestsProvider);
-    // filter to current seller
-    final sellerName = ref.watch(userNameProvider) ?? '';
-    final mine = requests.where((r) => r.sellerName == sellerName).toList();
+    final seller = ref.watch(userNameProvider) ?? '';
+    final confirmedOrders = orders
+        .where((o) => o['sellerName'] == seller && (o['status'] ?? '') == 'Confirmed')
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -32,32 +30,97 @@ class PickupRequestsScreen extends ConsumerWidget {
         backgroundColor: const Color(0xFF00A699),
         foregroundColor: Colors.white,
       ),
-      body: mine.isEmpty
+      body: confirmedOrders.isEmpty
           ? const Center(child: Text('No pickup requests'))
           : ListView.builder(
               padding: const EdgeInsets.all(16),
-              itemCount: mine.length,
-              itemBuilder: (context, idx) {
-                final r = mine[idx];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(r.wasteType,
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 6),
-                        Text('Weight: ${r.weight} kg'),
-                        Text('Company: ${r.companyName}'),
-                        Text('Status: ${r.status}'),
-                      ],
+              itemCount: confirmedOrders.length,
+              itemBuilder: (context, index) {
+                final order = confirmedOrders[index];
+                final hasPickupSchedule = (order['pickupDate'] ?? '').toString().isNotEmpty;
+                final currentStage = hasPickupSchedule ? 'Pickup Scheduled' : 'Order Confirmed';
+                final stages = [
+                  'Order Confirmed',
+                  'Pickup Scheduled',
+                  'Truck Dispatched',
+                  'Waste Collected',
+                  'Delivered to Recycling Plant',
+                ];
+                final currentIndex = stages.indexOf(currentStage);
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Card(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(order['wasteType'] ?? '',
+                                style: const TextStyle(
+                                    fontSize: 18, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 8),
+                            Text('Company: ${order['companyName'] ?? ''}'),
+                            Text('Pickup Location: ${order['location'] ?? ''}'),
+                            Text('Pickup Date: ${order['pickupDate'] ?? ''}'),
+                            Text('Pickup Time: ${order['pickupTime'] ?? ''}'),
+                          ],
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    const Text('Pickup Tracking',
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Column(
+                      children: stages.asMap().entries.map((entry) {
+                        final idx = entry.key;
+                        final stage = entry.value;
+                        final isCompleted = idx < currentIndex;
+                        final isCurrent = idx == currentIndex;
+                        return Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                isCompleted
+                                    ? Icons.check_circle
+                                    : isCurrent
+                                        ? Icons.radio_button_checked
+                                        : Icons.radio_button_unchecked,
+                                color: isCompleted
+                                    ? Colors.green
+                                    : isCurrent
+                                        ? Colors.blue
+                                        : Colors.grey,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  stage,
+                                  style: TextStyle(
+                                    fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+                                    color: isCompleted
+                                        ? Colors.green
+                                        : isCurrent
+                                            ? Colors.blue
+                                            : Colors.black,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
                 );
-              }),
+              },
+            ),
     );
   }
 }
