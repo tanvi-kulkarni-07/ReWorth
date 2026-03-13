@@ -186,152 +186,66 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
                 ],
               ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+            const SizedBox(height: 16),
+
+            // AI Business Insights Card
+            _buildSectionCard(
+              'AI Business Insights',
+              Icons.psychology,
+              ref.watch(realTimeAISuggestionsProvider).when(
+                data: (insights) {
+                  final displayItems = _showAllInsights
+                      ? insights
+                      : insights.take(3).toList();
+                  return Column(
+                    children: [
+                      ...displayItems.map(
+                        (insight) => Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: _buildInsightItem(
+                            insight['text'] as String? ?? 'Insight not available',
+                            insight['tag'] as String? ?? '',
+                            insight['color'] as Color? ?? Colors.blueAccent,
+                          ),
+                        ),
+                      ),
+                      if (insights.length > 3)
+                        TextButton(
+                          onPressed: () {
+                            setState(() {
+                              _showAllInsights = !_showAllInsights;
+                            });
+                          },
+                          child: Text(
+                            _showAllInsights ? 'Show less' : 'Show all',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+                loading: () => const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 16),
+                    child: CircularProgressIndicator(),
+                  ),
+                ),
+                error: (err, stack) => Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.purple.shade100,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: const Text('🧠', style: TextStyle(fontSize: 24)),
+                    _buildInsightItem(
+                      'Unable to load insights',
+                      err.toString(),
+                      Colors.red,
                     ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'AI Business Insights',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    const SizedBox(height: 12),
+                    _buildInsightItem(
+                      'Try again later or check your API key settings.',
+                      'Settings',
+                      Colors.orange,
                     ),
                   ],
                 ),
-                const SizedBox(height: 16),
-                // Fetch insights from OpenAI (via OpenRouter) and display a list
-                ref
-                    .watch(realTimeAISuggestionsProvider)
-                    .when(
-                      data: (insights) {
-                        final displayItems = _showAllInsights
-                            ? insights
-                            : insights.take(3).toList();
-
-                        return Column(
-                          children: [
-                            ...displayItems.map(
-                              (insight) => Padding(
-                                padding: const EdgeInsets.only(bottom: 12),
-                                child: _buildInsightItem(
-                                  insight['text'] as String? ??
-                                      'Insight not available',
-                                  insight['tag'] as String? ?? '',
-                                  insight['color'] as Color? ??
-                                      Colors.blueAccent,
-                                ),
-                              ),
-                            ),
-                            if (insights.length > 3)
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _showAllInsights = !_showAllInsights;
-                                  });
-                                },
-                                child: Text(
-                                  _showAllInsights ? 'Show less' : 'Show all',
-                                  style: const TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                          ],
-                        );
-                      },
-                      loading: () => const Center(
-                        child: Padding(
-                          padding: EdgeInsets.symmetric(vertical: 16),
-                          child: CircularProgressIndicator(),
-                        ),
-                      ),
-                      error: (err, stack) => Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildInsightItem(
-                            'Unable to load insights',
-                            err.toString(),
-                            Colors.red,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildInsightItem(
-                            'Try again later or check your API key settings.',
-                            'Settings',
-                            Colors.orange,
-                          ),
-                        ],
-                      ),
-                    ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-
-            // AI Business Insights Card
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Colors.purple.shade50, Colors.blue.shade50],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.purple.shade200, width: 1),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.purple.shade100,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: const Text('🧠', style: TextStyle(fontSize: 24)),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'AI Business Insights',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  _buildInsightItem(
-                    '📈 Best time to sell plastic: Next 2 weeks',
-                    'Market demand is rising',
-                    Colors.green,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildInsightItem(
-                    '💰 Your waste value increased 12% this month',
-                    'Keep up the great work!',
-                    Colors.blue,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildInsightItem(
-                    '🎯 Organic waste prices peak on weekends',
-                    'Plan your listings accordingly',
-                    Colors.orange,
-                  ),
-                ],
               ),
             ),
             const SizedBox(height: 16),
