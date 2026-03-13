@@ -1,12 +1,35 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../providers/dashboard_providers.dart';
+import '../../providers/listing_providers.dart';
 
 class ImpactWalletScreen extends ConsumerWidget {
   const ImpactWalletScreen({super.key});
 
+  double _carbonCreditsForWasteType(String wasteType) {
+    final lower = wasteType.toLowerCase();
+    if (lower.contains('plastic')) return 1.0;
+    if (lower.contains('paper')) return 1.0;
+    if (lower.contains('metal')) return 2.0;
+    if (lower.contains('glass')) return 0.5;
+    if (lower.contains('organic') || lower.contains('agro')) return 0.3;
+    return 0.5;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final orders = ref.watch(ordersProvider);
+    final totalWasteKg = orders.fold<double>(
+      0,
+      (prev, o) => prev + o.weight,
+    );
+
+    final carbonCredits = orders.fold<double>(0, (prev, o) {
+      final factor = _carbonCreditsForWasteType(o.wasteType);
+      return prev + o.weight * factor;
+    });
+
+    final totalCo2Impact = carbonCredits;
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -79,12 +102,7 @@ class ImpactWalletScreen extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        // show credits from provider
-                        ref.watch(impactStatsProvider).maybeWhen(
-                              data: (stats) => stats.carbonCredits
-                                  .toStringAsFixed(0),
-                              orElse: () => '0',
-                            ),
+                        carbonCredits.toStringAsFixed(0),
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 56,
@@ -125,7 +143,7 @@ class ImpactWalletScreen extends ConsumerWidget {
                         ),
                         const SizedBox(width: 6),
                         Text(
-                          '+12% from last month',
+                          'Total Waste Purchased: ${totalWasteKg.toStringAsFixed(0)} kg',
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.95),
                             fontSize: 13,
@@ -159,11 +177,7 @@ class ImpactWalletScreen extends ConsumerWidget {
                         child: _buildMetricCard(
                           '📉',
                           'CO₂ Reduced',
-                          ref.watch(impactStatsProvider).maybeWhen(
-                                data: (stats) =>
-                                    '${(stats.totalCO2Saved / 1000).toStringAsFixed(1)} tons',
-                                orElse: () => '0 tons',
-                              ),
+                          '${(totalCo2Impact / 1000).toStringAsFixed(1)} tons',
                           'This year',
                           Colors.green,
                         ),
