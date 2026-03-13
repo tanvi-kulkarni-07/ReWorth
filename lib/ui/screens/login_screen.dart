@@ -97,18 +97,23 @@ class LoginScreen extends ConsumerWidget {
                   // Action Button
                   ElevatedButton(
                     style: ReWorthUI.actionButtonStyle,
-                    onPressed: () {
+                    onPressed: () async {
                       final email = ref.read(loginEmailProvider);
                       final password = ref.read(loginPasswordProvider);
-                      ref.read(authProvider.notifier).login(email, password);
-
-                      if (ref.read(isLoggedInProvider)) {
-                        ref.read(loginEmailProvider.notifier).state = '';
-                        ref.read(loginPasswordProvider.notifier).state = '';
-                        Navigator.pushReplacementNamed(context, '/home');
-                      } else {
+                      try {
+                        await ref.read(authProvider.notifier).login(email, password);
+                        if (ref.read(isLoggedInProvider)) {
+                          ref.read(loginEmailProvider.notifier).state = '';
+                          ref.read(loginPasswordProvider.notifier).state = '';
+                          Navigator.pushReplacementNamed(context, '/home');
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Invalid credentials')),
+                          );
+                        }
+                      } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Invalid credentials')),
+                          SnackBar(content: Text(e.toString())),
                         );
                       }
                     },

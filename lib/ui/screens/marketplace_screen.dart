@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import '../../models/recycler_company.dart';
 import '../../services/company_data_service.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../providers/listing_providers.dart';
+import '../../providers/auth_provider.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'dashboard_screen.dart';
 
 /// Marketplace showing recycler companies loaded from JSON asset. Users can
 /// filter by waste type, search by name/city/type, and optionally restrict to
@@ -14,6 +18,9 @@ class MarketplaceScreen extends StatefulWidget {
 }
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
+  late String? _role;
+  List<WasteListing> _listings = [];
+
   bool _isLoading = true;
   List<RecyclerCompany> _allCompanies = [];
   List<RecyclerCompany> _filteredCompanies = [];
@@ -40,6 +47,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   }
 
   Future<void> _loadCompanies() async {
+    // nothing changes for recycler company list (seller view)
     try {
       final list = await CompanyDataService.loadFromAsset();
       setState(() {
@@ -276,97 +284,83 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: _showSearchBar
-            ? TextField(
-                controller: _searchController,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  hintText: 'Search companies...',
-                  border: InputBorder.none,
-                  hintStyle: TextStyle(color: Colors.white70),
-                ),
-                style: const TextStyle(color: Colors.white),
-                onChanged: (v) {
-                  _searchQuery = v;
-                  _applyFilters();
-                },
+    return Consumer(builder: (context, ref, _) {
+      final role = ref.watch(userRoleProvider);
+      // Allow null role in tests (no auth context), but enforce buyer vs seller in real usage.
+      if (role != null && role != 'buyer') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          );
+        });
+        return const SizedBox.shrink();
+      }
+
+      // buyer marketplace: show waste listings from provider
+      final listings = ref.watch(listingsProvider);
+      return Scaffold(
+        appBar: AppBar(
+          automaticallyImplyLeading: false,
+          title: const Text('Marketplace'),
+          backgroundColor: const Color(0xFF00A699),
+          foregroundColor: Colors.white,
+          elevation: 0,
+        ),
+        body: listings.isEmpty
+            ? const Center(
+                child: Text('No waste listings available',
+                    style: TextStyle(fontSize: 18)),
               )
-            : const Text('Marketplace'),
-        backgroundColor: const Color(0xFF00A699),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: Icon(_showSearchBar ? Icons.close : Icons.search),
-            onPressed: () {
-              if (_showSearchBar) {
-                _showSearchBar = false;
-                _searchController.clear();
-                _searchQuery = '';
-                _applyFilters();
-              } else {
-                setState(() {
-                  _showSearchBar = true;
-                });
-              }
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.filter_list),
-            onPressed: _showFilterBottomSheet,
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          // waste type chips
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _wasteTypes.map((type) {
-                  final isSelected = type == _selectedWaste;
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      label: Text(type),
-                      selected: isSelected,
-                      onSelected: (sel) {
-                        if (sel && _selectedWaste != type) {
-                          _selectedWaste = type;
-                          _applyFilters();
-                        }
-                      },
-                      selectedColor: const Color(0xFF00A699),
-                      backgroundColor: Colors.grey[200],
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: listings.length,
+                itemBuilder: (context, index) {
+                  final item = listings[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(item.wasteType,
+                              style: const TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 6),
+                          Text('Weight: ${item.weightKg} kg'),
+                          Text('Price/kg: ₹${item.pricePerKg}'),
+                          Text('Total: ₹${item.totalValue.toStringAsFixed(0)}'),
+                          Text('Seller: ${item.sellerName}'),
+                          Text('Location: ${item.sellerLocation}'),
+                          const SizedBox(height: 8),
+                          ElevatedButton(
+                            onPressed: () {
+                              // create order
+                              ref.read(ordersProvider.notifier).addOrder(
+                                    Order(
+                                      wasteType: item.wasteType,
+                                      weight: item.weightKg,
+                                      sellerName: item.sellerName,
+                                      companyName: item.companyName,
+                                    ),
+                                  );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text('Order placed')),
+                              );
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00A699),
+                            ),
+                            child: const Text('Request Pickup'),
+                          ),
+                        ],
+                      ),
                     ),
                   );
-                }).toList(),
+                },
               ),
-            ),
-          ),
-
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredCompanies.isEmpty
-                ? const Center(child: Text('No companies found'))
-                : ListView.builder(
-                    padding: const EdgeInsets.all(12),
-                    itemCount: _filteredCompanies.length,
-                    itemBuilder: (context, idx) {
-                      final c = _filteredCompanies[idx];
-                      return _buildMarketplaceCard(c);
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
+      );
+    });
   }
 }

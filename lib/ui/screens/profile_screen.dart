@@ -264,8 +264,8 @@ class ProfilePage extends ConsumerWidget {
             Column(
               children: [
                 _buildDetailRow('Email', ref.watch(userEmailProvider) ?? ''),
-                _buildDetailRow('Phone', '+923008096892'),
-                _buildDetailRow('Location', 'Multan, Pakistan'),
+                _buildDetailRow('Phone', ref.watch(userPhoneProvider) ?? ''),
+                _buildDetailRow('Location', ref.watch(userLocationProvider) ?? ''),
                 _buildDetailRow('Member Since', 'Jan 2026'),
               ],
             ),

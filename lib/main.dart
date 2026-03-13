@@ -23,6 +23,8 @@ import 'ui/screens/my_listings_screen.dart';
 import 'ui/screens/recycler_map_screen.dart';
 import 'ui/screens/market_insights_screen.dart';
 import 'ui/screens/chat_screen.dart';
+import 'ui/screens/my_orders_screen.dart';
+import 'ui/screens/pickup_requests_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
@@ -60,6 +62,8 @@ class MyApp extends ConsumerWidget {
       '/profile': (c) => const ProfileScreen(),
       '/upload_waste': (c) => const UploadWasteScreen(),
       '/my_listings': (c) => const MyListingsScreen(),
+      '/my_orders': (c) => const MyOrdersScreen(),
+      '/pickup_requests': (c) => const PickupRequestsScreen(),
       '/market_insights': (c) => const MarketInsightsScreen(),
       '/recycler_map': (c) => const RecyclerMapScreen(),
       // debugging/chat route

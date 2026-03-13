@@ -8,6 +8,8 @@ import 'my_listings_screen.dart';
 import 'market_insights_screen.dart';
 import 'marketplace_screen.dart';
 import 'logistics_screen.dart';
+import 'pickup_requests_screen.dart';
+import 'my_orders_screen.dart';
 import 'profile_screen.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
@@ -149,41 +151,82 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 const SizedBox(height: 20),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      _buildQuickAction(
-                        'Upload',
-                        Icons.add_a_photo,
-                        ReWorthUI.accentGreen,
-                        () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute(
-                            builder: (_) => const UploadWasteScreen(),
+                  child: Builder(builder: (context) {
+                    final role = ref.watch(userRoleProvider);
+                    final actions = <Widget>[];
+
+                    if (role == 'seller') {
+                      actions.addAll([
+                        _buildQuickAction(
+                          'Upload',
+                          Icons.add_a_photo,
+                          ReWorthUI.accentGreen,
+                          () => Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => const UploadWasteScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                      _buildQuickAction(
-                        'Listings',
-                        Icons.inventory_2,
-                        Colors.blue,
-                        () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute(
-                            builder: (_) => const MyListingsScreen(),
+                        _buildQuickAction(
+                          'Listings',
+                          Icons.inventory_2,
+                          Colors.blue,
+                          () => Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => const MyListingsScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                      _buildQuickAction(
-                        'Insights',
-                        Icons.bar_chart,
-                        Colors.orange,
-                        () => Navigator.of(context, rootNavigator: true).push(
-                          MaterialPageRoute(
-                            builder: (_) => const MarketInsightsScreen(),
+                        _buildQuickAction(
+                          'Requests',
+                          Icons.local_shipping,
+                          Colors.purple,
+                          () => Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => const PickupRequestsScreen(),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
+                      ]);
+                    } else {
+                      actions.addAll([
+                        _buildQuickAction(
+                          'Marketplace',
+                          Icons.storefront,
+                          ReWorthUI.accentGreen,
+                          () => Navigator.of(context, rootNavigator: true)
+                              .push(MaterialPageRoute(
+                            builder: (_) => const MarketplaceScreen(),
+                          )),
+                        ),
+                        _buildQuickAction(
+                          'Logistics',
+                          Icons.local_shipping,
+                          Colors.blue,
+                          () => Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => const LogisticsScreen(),
+                            ),
+                          ),
+                        ),
+                        _buildQuickAction(
+                          'Orders',
+                          Icons.receipt_long,
+                          Colors.orange,
+                          () => Navigator.of(context, rootNavigator: true).push(
+                            MaterialPageRoute(
+                              builder: (_) => const MyOrdersScreen(),
+                            ),
+                          ),
+                        ),
+                      ]);
+                    }
+
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: actions,
+                    );
+                  }),
                 ),
 
                 const SizedBox(height: 32),

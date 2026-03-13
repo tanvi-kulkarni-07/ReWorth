@@ -14,8 +14,10 @@ import 'package:url_launcher/url_launcher_string.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../services/carbon_impact_service.dart';
 import '../../providers/dashboard_providers.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/listing_providers.dart';
 import 'company_detail_screen.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dashboard_screen.dart';
 
 class UploadWasteScreen extends ConsumerStatefulWidget {
   const UploadWasteScreen({super.key});
@@ -104,7 +106,7 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
+      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
         const SnackBar(
           content: Text('Could not load the waste detection model.'),
         ),
@@ -170,7 +172,7 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
     } catch (e) {
       debugPrint('Error processing image: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           const SnackBar(
             content: Text('Waste detection failed for the selected image.'),
           ),
@@ -233,6 +235,17 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final role = ref.watch(userRoleProvider);
+    // Allow null role in tests (no auth context), but enforce buyer vs seller in real usage.
+    if (role != null && role != 'seller') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      });
+      return const SizedBox.shrink();
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -610,6 +623,30 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
                   onPressed: () {
                     if (localWeight <= 0 || priceKg <= 0) return;
                     final total = localWeight * priceKg;
+
+                    // create listing and pickup request for seller
+                    final seller = ref.read(userNameProvider) ?? '';
+                    final sellerLoc = ref.read(userLocationProvider) ?? '';
+                    ref.read(listingsProvider.notifier).addListing(
+                      WasteListing(
+                        wasteType: _detectedMaterial,
+                        weightKg: localWeight,
+                        pricePerKg: priceKg,
+                        totalValue: total,
+                        companyName: c.name,
+                        sellerName: seller,
+                        sellerLocation: sellerLoc,
+                      ),
+                    );
+                    ref.read(pickupRequestsProvider.notifier).addRequest(
+                      PickupRequest(
+                        sellerName: seller,
+                        wasteType: _detectedMaterial,
+                        weight: localWeight,
+                        companyName: c.name,
+                      ),
+                    );
+
                     Navigator.push(
                       context,
                       MaterialPageRoute(
@@ -674,7 +711,7 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
                         await launchUrlString(uri);
                       } else {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
                             const SnackBar(
                               content: Text('Unable to open dialer.'),
                             ),
@@ -702,7 +739,7 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
                         );
                       } else {
                         if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
                             const SnackBar(
                               content: Text('Could not open website.'),
                             ),
@@ -737,13 +774,13 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
   void _handleNextStep() {
     if (_currentStep == 0) {
       if (_image == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           const SnackBar(content: Text('Please capture an image')),
         );
         return;
       }
       if (!_isModelReady) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           const SnackBar(
             content: Text('The waste detection model is still loading.'),
           ),
@@ -754,7 +791,7 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
     } else if (_currentStep == 2) {
       // record transaction once weight has been entered
       if (_enteredWeight <= 0 || _pricePerKg <= 0) {
-        ScaffoldMessenger.of(context).showSnackBar(
+        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
           const SnackBar(content: Text('Please enter a valid weight to continue.')),
         );
         return;

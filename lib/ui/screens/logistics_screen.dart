@@ -1,14 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/nearby_company.dart';
+import '../../models/recycler_company.dart';
+import '../../services/company_data_service.dart';
 import '../../services/location_search_service.dart';
 import '../../services/realtime_company_service.dart';
+import '../../providers/auth_provider.dart';
+import 'dashboard_screen.dart';
 
 enum _LocationRecoveryAction {
   requestPermission,
@@ -16,14 +21,15 @@ enum _LocationRecoveryAction {
   openLocationSettings,
 }
 
-class LogisticsScreen extends StatefulWidget {
+class LogisticsScreen extends ConsumerStatefulWidget {
   const LogisticsScreen({super.key});
 
   @override
-  State<LogisticsScreen> createState() => _LogisticsScreenState();
+  ConsumerState<LogisticsScreen> createState() => _LogisticsScreenState();
 }
 
-class _LogisticsScreenState extends State<LogisticsScreen> {
+class _LogisticsScreenState extends ConsumerState<LogisticsScreen>
+    with WidgetsBindingObserver {
   static const LatLng _fallbackCenter = LatLng(20.5937, 78.9629);
   static const int _searchRadiusMeters = 15000;
   static const String _streetTileUrl =
@@ -39,6 +45,9 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   final TextEditingController _companyFilterController =
       TextEditingController();
 
+  /// local cache fallback when realtime feed is empty / unavailable
+  // CompanyDataService is used only via its static API; no instance needed.
+
   LatLng? _currentPosition;
   LatLng? _lastSearchCenter;
   LatLng? _searchedLocation;
@@ -52,6 +61,7 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
 
   bool _shareLiveLocation = true;
   bool _showNearbyCompanies = true;
+  bool _showAllCompanies = false;
   bool _isSatelliteView = false;
   bool _isMapReady = false;
   bool _hasCenteredOnUser = false;
@@ -69,11 +79,13 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startLocationSharing();
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _locationSearchController.dispose();
     _companyFilterController.dispose();
     _nearbyRefreshDebounce?.cancel();
@@ -169,6 +181,22 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
     });
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      // If the user returns and location was previously unavailable, retry.
+      if (_locationRecoveryAction != null) {
+        _startLocationSharing();
+      }
+
+      // If we are showing the map but still have no nearby companies, refresh.
+      if (_currentPosition != null && _nearbyCompanies.isEmpty) {
+        _refreshNearbyCompanies(force: true);
+      }
+    }
+  }
+
   void _updateCurrentPosition(
     LatLng nextPosition, {
     bool centerOnUser = false,
@@ -253,32 +281,35 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
       });
     }
 
+    final radiusMeters = _showAllCompanies ? 1000000 : _searchRadiusMeters;
+
     _nearbyCompaniesSubscription = _realtimeCompanyService
         .watchNearbyCompanies(
           center: position,
-          radiusMeters: _searchRadiusMeters,
+          radiusMeters: radiusMeters,
         )
         .listen(
-          (feed) {
+          (feed) async {
             if (!mounted || requestId != _nearbyRequestId) {
               return;
             }
 
-            NearbyCompany? selectedCompany;
-            if (_selectedCompany != null) {
-              for (final company in feed.companies) {
-                if (company.id == _selectedCompany!.id) {
-                  selectedCompany = company;
-                  break;
-                }
-              }
+            // Use realtime results if available, otherwise fall back to local data.
+            final reportedCompanies =
+                feed.companies.isNotEmpty
+                    ? feed.companies
+                    : await CompanyDataService.loadNearbyFromAsset(center: position);
+
+            NearbyCompany? selectedCompany = _selectedCompany;
+            if (selectedCompany == null && reportedCompanies.isNotEmpty) {
+              selectedCompany = reportedCompanies.first;
             }
 
             setState(() {
-              _nearbyCompanies = feed.companies;
+              _nearbyCompanies = reportedCompanies;
               _selectedCompany = selectedCompany;
               _isLoadingNearbyCompanies = false;
-              _nearbyCompaniesError = feed.companies.isEmpty
+              _nearbyCompaniesError = reportedCompanies.isEmpty
                   ? feed.message ??
                         'No nearby buyers or recycling companies were found in this area yet.'
                   : null;
@@ -286,22 +317,33 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
               _lastSearchCenter = position;
               _locationRecoveryAction = null;
             });
+
+            if (_isMapReady && selectedCompany != null) {
+              _mapController.move(selectedCompany.latLng, 14.0);
+            }
           },
-          onError: (_) {
+          onError: (_) async {
             if (!mounted || requestId != _nearbyRequestId) {
               return;
             }
 
+            // Fallback to local company list on error.
+            final local = await CompanyDataService.loadNearbyFromAsset(center: position);
             setState(() {
+              _nearbyCompanies = local;
+              _selectedCompany = local.isNotEmpty ? local.first : null;
               _isLoadingNearbyCompanies = false;
-              _nearbyCompaniesError =
-                  'Could not load nearby buyers right now. Try refreshing in a moment.';
+              _nearbyCompaniesError = local.isEmpty
+                  ? 'Could not load nearby buyers right now. Try refreshing in a moment.'
+                  : null;
               _nearbyCompaniesSourceMessage = null;
               _locationRecoveryAction = null;
             });
           },
         );
   }
+
+
 
   Future<void> _toggleLocationSharing(bool enabled) async {
     if (enabled == _shareLiveLocation) {
@@ -366,6 +408,16 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
     if (enabled) {
       _refreshNearbyCompanies(force: true);
     }
+  }
+
+  void _toggleShowAllCompanies(bool enabled) {
+    setState(() {
+      _showAllCompanies = enabled;
+      // Always show nearby companies when showing all.
+      _showNearbyCompanies = true;
+    });
+
+    _refreshNearbyCompanies(force: true);
   }
 
   void _focusOnCompany(NearbyCompany company) {
@@ -727,6 +779,15 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
         return base;
       }
 
+      return '$base ${_nearbyCompaniesSourceMessage!}';
+    }
+
+    if (_showAllCompanies) {
+      final base =
+          '${_nearbyCompanies.length} companies (showing all, regardless of distance).';
+      if (_nearbyCompaniesSourceMessage == null) {
+        return base;
+      }
       return '$base ${_nearbyCompaniesSourceMessage!}';
     }
 
@@ -1248,6 +1309,18 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // restrict to buyers only
+    final role = ref.watch(userRoleProvider);
+    // Allow null role in tests (no auth context), but enforce buyer vs seller in real usage.
+    if (role != null && role != 'buyer') {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      });
+      return const SizedBox.shrink();
+    }
+
     final markers = <Marker>[
       ..._buildCompanyMarkers(),
       if (_searchedLocation != null)
@@ -1491,6 +1564,14 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
                           avatar: const Icon(Icons.recycling, size: 18),
                           onSelected: (selected) {
                             _toggleNearbyCompanies(selected);
+                          },
+                        ),
+                        FilterChip(
+                          selected: _showAllCompanies,
+                          label: const Text('All'),
+                          avatar: const Icon(Icons.list, size: 18),
+                          onSelected: (selected) {
+                            _toggleShowAllCompanies(selected);
                           },
                         ),
                         ActionChip(

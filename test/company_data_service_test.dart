@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:reworth/services/company_data_service.dart';
 import 'package:reworth/services/recycler_company_service.dart';
 import 'package:reworth/models/recycler_company.dart';
+import 'package:reworth/models/nearby_company.dart';
 import 'package:reworth/ui/screens/upload_waste_screen.dart';
 import 'package:latlong2/latlong.dart';
 
@@ -27,6 +28,26 @@ void main() {
       source: companies,
     );
     expect(filtered, isNotEmpty);
+  });
+
+  test('loadNearbyFromAsset returns sorted nearby companies', () async {
+    // use an arbitrary center (0,0) and ensure result list is sorted by
+    // distance and contains no duplicates with null lat/lng values.
+    final center = LatLng(0, 0);
+    final nearby = await CompanyDataService.loadNearbyFromAsset(center: center);
+    expect(nearby, isA<List>());
+    expect(nearby, isNotEmpty);
+
+    // distances should be non-decreasing
+    final distances = nearby.map((c) => c.distanceMeters).toList();
+    for (var i = 1; i < distances.length; i++) {
+      expect(distances[i] >= distances[i - 1], isTrue,
+          reason: 'List should be sorted by distance');
+    }
+
+    // each entry should have non-null latitude/longitude
+    expect(nearby.every((c) => c.latitude != null && c.longitude != null),
+        isTrue);
   });
 
   testWidgets('upload screen shows company cards with price after detection',

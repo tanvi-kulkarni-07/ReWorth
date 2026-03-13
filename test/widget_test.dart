@@ -28,6 +28,7 @@ void main() {
       ProviderScope(
         overrides: [
           userNameProvider.overrideWithValue('Tester'),
+          userRoleProvider.overrideWithValue('seller'),
         ],
         child: MaterialApp(
           home: const DashboardScreen(),
@@ -39,7 +40,8 @@ void main() {
     expect(find.byType(DashboardScreen), findsOneWidget);
 
     // tap upload waste button
-    await tester.tap(find.text('➕ Upload Waste'));
+    await tester.ensureVisible(find.text('Upload'));
+    await tester.tap(find.text('Upload'));
     await tester.pumpAndSettle();
     expect(find.byType(UploadWasteScreen), findsOneWidget);
 
@@ -48,7 +50,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(DashboardScreen), findsOneWidget);
 
-    await tester.tap(find.text('📦 My Listings'));
+    await tester.ensureVisible(find.text('Listings'));
+    await tester.tap(find.text('Listings'));
     await tester.pumpAndSettle();
     expect(find.byType(MyListingsScreen), findsOneWidget);
 
@@ -56,8 +59,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(DashboardScreen), findsOneWidget);
 
-    await tester.ensureVisible(find.text('📊 Market Insights'));
-    await tester.tap(find.text('📊 Market Insights'));
+    await tester.ensureVisible(find.text('Insights'));
+    await tester.tap(find.text('Insights'));
     await tester.pumpAndSettle();
     expect(find.byType(MarketInsightsScreen), findsOneWidget);
   });

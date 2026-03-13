@@ -88,6 +88,25 @@ class SignupScreen extends ConsumerWidget {
                           obscureText: true,
                         ),
                         const SizedBox(height: 16),
+                        TextField(
+                          onChanged: (v) =>
+                              ref.read(signupPhoneProvider.notifier).state = v,
+                          decoration: ReWorthUI.inputDecoration(
+                            'Phone',
+                            Icons.phone_outlined,
+                          ),
+                          keyboardType: TextInputType.phone,
+                        ),
+                        const SizedBox(height: 16),
+                        TextField(
+                          onChanged: (v) =>
+                              ref.read(signupLocationProvider.notifier).state = v,
+                          decoration: ReWorthUI.inputDecoration(
+                            'Location',
+                            Icons.location_on_outlined,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
                         DropdownButtonFormField<String>(
                           value: ref.watch(signupRoleProvider),
                           items: const [
@@ -123,14 +142,18 @@ class SignupScreen extends ConsumerWidget {
                       final email = ref.read(signupEmailProvider);
                       final password = ref.read(signupPasswordProvider);
                       final role = ref.read(signupRoleProvider);
+                      final phone = ref.read(signupPhoneProvider);
+                      final location = ref.read(signupLocationProvider);
                       try {
                         await ref
                             .read(authProvider.notifier)
-                            .signUp(name, email, password, role);
+                            .signUp(name, email, password, role, phone, location);
                         if (ref.read(isLoggedInProvider)) {
                           ref.read(signupNameProvider.notifier).state = '';
                           ref.read(signupEmailProvider.notifier).state = '';
                           ref.read(signupPasswordProvider.notifier).state = '';
+                          ref.read(signupPhoneProvider.notifier).state = '';
+                          ref.read(signupLocationProvider.notifier).state = '';
                           ref.read(signupRoleProvider.notifier).state =
                               'seller';
                           Navigator.pushReplacementNamed(context, '/home');
