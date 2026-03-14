@@ -190,6 +190,51 @@ class NearbyCompany {
     );
   }
 
+  factory NearbyCompany.fromJson({
+    required Map<String, dynamic> json,
+    required double userLatitude,
+    required double userLongitude,
+  }) {
+    final location = json['location'] as Map<String, dynamic>?;
+    if (location == null) {
+      throw const FormatException('Missing location data');
+    }
+
+    final latitude = (location['latitude'] as num?)?.toDouble();
+    final longitude = (location['longitude'] as num?)?.toDouble();
+
+    if (latitude == null || longitude == null) {
+      throw const FormatException('Missing coordinates in location');
+    }
+
+    final wasteTypes = _parseWasteTypes(json['wasteTypes']);
+    final name = json['name'] as String? ?? 'Unknown Company';
+    final category = json['category'] as String? ?? 'Buyer / recycler';
+    final address = json['address'] as String? ?? '';
+    final city = json['city'] as String? ?? '';
+    final website = json['website'] as String?;
+    final phone = json['phone'] as String?;
+
+    return NearbyCompany(
+      id: '${name.toLowerCase().replaceAll(' ', '_')}_${latitude.toStringAsFixed(5)}_${longitude.toStringAsFixed(5)}',
+      name: name,
+      category: category,
+      address: address,
+      city: city,
+      latitude: latitude,
+      longitude: longitude,
+      distanceMeters: Geolocator.distanceBetween(
+        userLatitude,
+        userLongitude,
+        latitude,
+        longitude,
+      ),
+      wasteTypes: wasteTypes.isNotEmpty ? wasteTypes : ['mixed waste'],
+      website: website,
+      phone: phone,
+    );
+  }
+
   static String _buildAddress(Map<String, dynamic> tags) {
     final parts = [
       _firstNonEmpty([tags['addr:housenumber']]),

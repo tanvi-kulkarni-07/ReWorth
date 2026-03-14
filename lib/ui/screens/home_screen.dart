@@ -5,7 +5,6 @@ import 'marketplace_screen.dart';
 import 'logistics_screen.dart';
 import 'impact_wallet_screen.dart';
 import 'profile_screen.dart';
-import 'upload_waste_screen.dart';
 import 'my_listings_screen.dart';
 import 'my_orders_screen.dart';
 import '../../providers/auth_provider.dart';
@@ -25,7 +24,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (role == 'seller') {
       return const [
         DashboardScreen(),
-        UploadWasteScreen(),
+        LogisticsScreen(),
         MyListingsScreen(),
         ImpactWalletScreen(), // earnings
         ProfilePage(),
@@ -51,9 +50,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           label: 'Dashboard',
         ),
         NavigationDestination(
-          icon: Icon(Icons.add_a_photo_outlined),
-          selectedIcon: Icon(Icons.add_a_photo),
-          label: 'Upload',
+          icon: Icon(Icons.local_shipping_outlined),
+          selectedIcon: Icon(Icons.local_shipping),
+          label: 'Logistics',
         ),
         NavigationDestination(
           icon: Icon(Icons.inventory_2_outlined),
@@ -124,7 +123,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         }
 
         return Scaffold(
+          extendBody: true, // Allow body to flow under the navbar if needed
           body: IndexedStack(index: _currentIndex, children: screens),
+          floatingActionButton: FloatingActionButton(
+            onPressed: () =>
+                Navigator.of(context, rootNavigator: true).pushNamed('/chat'),
+            backgroundColor: const Color(0xFF00A699),
+            child: const Icon(Icons.chat, color: Colors.white),
+          ),
           bottomNavigationBar: NavigationBarTheme(
             data: NavigationBarThemeData(
               indicatorColor: const Color(0xFF00A699).withOpacity(0.16),

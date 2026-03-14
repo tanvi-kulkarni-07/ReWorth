@@ -71,8 +71,9 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final FirebaseAuth? _auth;
   StreamSubscription<User?>? _authSubscription;
-  final FirebaseFirestore? _firestore =
-      Firebase.apps.isNotEmpty ? FirebaseFirestore.instance : null;
+  final FirebaseFirestore? _firestore = Firebase.apps.isNotEmpty
+      ? FirebaseFirestore.instance
+      : null;
   Timer? _debounceTimer;
 
   // shared GoogleSignIn object with email scope; avoids recreating and allows
@@ -141,25 +142,44 @@ class AuthNotifier extends StateNotifier<AuthState> {
     super.dispose();
   }
 
-  /// Local login - compares credentials stored in SharedPreferences.
+  /// Signs in using Firebase Auth email/password.
   Future<void> login(String email, String password) async {
-    _prefs ??= await SharedPreferences.getInstance();
-    final storedEmail = _prefs!.getString('email');
-    final storedPassword = _prefs!.getString('password');
-    if (storedEmail == email && storedPassword == password) {
-      // build state from prefs values
+    final auth = _auth;
+    if (auth == null) throw Exception('Firebase not initialised');
+    try {
+      final credential = await auth.signInWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) throw Exception('Login failed');
+      // Fetch extra profile data (role, phone, location) from Firestore
+      String? role, phone, location, name;
+      name = user.displayName;
+      if (_firestore != null) {
+        try {
+          final snap = await _firestore.collection('users').doc(user.uid).get();
+          if (snap.exists) {
+            final d = snap.data()!;
+            role = d['role'] as String?;
+            phone = d['phone'] as String?;
+            location = d['location'] as String?;
+            name = d['name'] as String? ?? name;
+          }
+        } catch (_) {}
+      }
       state = AuthState(
         isLoggedIn: true,
-        email: storedEmail,
-        name: _prefs!.getString('name'),
-        role: _prefs!.getString('role'),
-        phone: _prefs!.getString('phone'),
-        location: _prefs!.getString('location'),
+        email: user.email,
+        name: name,
+        role: role,
+        phone: phone,
+        location: location,
       );
       _savePrefs(state);
-    } else {
-      state = state.copyWith(error: 'Invalid credentials');
-      throw Exception('Invalid credentials');
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(error: e.message);
+      rethrow;
     }
   }
 
@@ -193,25 +213,41 @@ class AuthNotifier extends StateNotifier<AuthState> {
       final user = userCredential.user;
 
       if (user != null) {
+        // Fetch role from Firestore for Google Sign-In users
+        String? role;
+        if (_firestore != null) {
+          try {
+            final doc = await _firestore
+                .collection('users')
+                .doc(user.uid)
+                .get();
+            if (doc.exists) {
+              final data = doc.data()!;
+              role = data['role'] as String?;
+            }
+          } catch (_) {}
+        }
+
         // Prepare state from Google User
         state = state.copyWith(
           isLoggedIn: true,
           email: user.email,
           name: user.displayName,
-          role: 'seller', // Default role for Google Sign-In
+          role: role, // Use role from Firestore, not default
         );
         _savePrefs(state);
 
-        // Sync to Firestore if needed
-        if (_firestore != null) {
-          const docId = 'reworth_4_users';
-          await _firestore!.collection('user').doc(docId).set({
+        // Sync to Firestore if needed (only if document doesn't exist)
+        if (_firestore != null && role == null) {
+          await _firestore.collection('users').doc(user.uid).set({
             'uid': user.uid,
             'name': user.displayName,
             'email': user.email,
-            'role': 'seller',
+            'role': 'buyer', // Default to buyer for new Google users
             'lastLogin': FieldValue.serverTimestamp(),
           }, SetOptions(merge: true));
+          state = state.copyWith(role: 'buyer');
+          _savePrefs(state);
         }
       }
     } on PlatformException catch (e) {
@@ -232,8 +268,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Sign up by saving details locally to SharedPreferences.  The
-  /// [phone] and [location] parameters are optional but persisted.
+  /// Creates a new account in Firebase Auth and stores profile data in
+  /// Firestore under users/{uid}.
   Future<void> signUp(
     String name,
     String email,
@@ -242,23 +278,42 @@ class AuthNotifier extends StateNotifier<AuthState> {
     String phone,
     String location,
   ) async {
-    _prefs ??= await SharedPreferences.getInstance();
-    await _prefs!.setString('email', email);
-    await _prefs!.setString('password', password);
-    await _prefs!.setString('name', name);
-    await _prefs!.setString('role', role);
-    await _prefs!.setString('phone', phone);
-    await _prefs!.setString('location', location);
-
-    state = AuthState(
-      isLoggedIn: true,
-      email: email,
-      name: name,
-      role: role,
-      phone: phone,
-      location: location,
-    );
-    _savePrefs(state);
+    final auth = _auth;
+    if (auth == null) throw Exception('Firebase not initialised');
+    try {
+      final credential = await auth.createUserWithEmailAndPassword(
+        email: email.trim(),
+        password: password,
+      );
+      final user = credential.user;
+      if (user == null) throw Exception('Sign-up failed');
+      // Update display name in Firebase Auth
+      await user.updateDisplayName(name);
+      // Persist extended profile to Firestore
+      if (_firestore != null) {
+        await _firestore.collection('users').doc(user.uid).set({
+          'uid': user.uid,
+          'name': name,
+          'email': email.trim(),
+          'role': role,
+          'phone': phone,
+          'location': location,
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
+      state = AuthState(
+        isLoggedIn: true,
+        email: email,
+        name: name,
+        role: role,
+        phone: phone,
+        location: location,
+      );
+      _savePrefs(state);
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(error: e.message);
+      rethrow;
+    }
   }
 
   /// Look up the role/email for an authenticated user from Firestore.
@@ -268,13 +323,10 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
     if (_firestore != null) {
       try {
-        const docId = 'reworth_4_users';
-        final doc = await _firestore!.collection('user').doc(docId).get();
+        final doc = await _firestore.collection('users').doc(user.uid).get();
         if (doc.exists) {
           final data = doc.data()!;
-          if (data['email'] == user.email) {
-            role = data['role'] as String?;
-          }
+          role = data['role'] as String?;
         }
       } catch (_) {}
     }

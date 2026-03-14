@@ -21,40 +21,61 @@ class MyListingsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Listings'),
-        backgroundColor: const Color(0xFF00A699),
-        foregroundColor: Colors.white,
-      ),
-      body: myOrders.isEmpty
-          ? const Center(
-              child: Text('No listings yet', style: TextStyle(fontSize: 18)),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: myOrders.length,
-              itemBuilder: (context, index) {
-                final order = myOrders[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(order['wasteType'] ?? '',
-                            style: const TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 8),
-                        Text('Quantity: ${order['quantity'] ?? ''}'),
-                        Text('Company: ${order['companyName'] ?? ''}'),
-                        Text('Location: ${order['location'] ?? ''}'),
-                        Text('Status: ${order['status'] ?? ''}'),
-                      ],
-                    ),
-                  ),
-                );
-              },
+        title: const Text(
+          'My Listings',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C853), Color(0xFF0091EA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
+          ),
+        ),
+        elevation: 0,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: myOrders.isEmpty
+            ? const Center(
+                child: Text(
+                  'No listings yet',
+                  style: TextStyle(fontSize: 18, color: Colors.white70),
+                ),
+              )
+            : ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: myOrders.length,
+                itemBuilder: (context, index) {
+                  final order = myOrders[index];
+                  return Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            order['wasteType'] ?? '',
+                            style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text('Quantity: ${order['quantity'] ?? ''}'),
+                          Text('Company: ${order['companyName'] ?? ''}'),
+                          Text('Location: ${order['location'] ?? ''}'),
+                          Text('Status: ${order['status'] ?? ''}'),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+      ),
     );
   }
 }

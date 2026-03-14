@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../providers/auth_provider.dart';
 import '../../providers/listing_providers.dart';
-import 'dashboard_screen.dart';
 
 class WasteSummary {
   final String wasteType;
@@ -95,55 +93,58 @@ class MarketplaceScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final role = ref.watch(userRoleProvider);
-    // Allow null role in tests (no auth context), but enforce buyer vs seller in real usage.
-    if (role != null && role != 'buyer') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
-        );
-      });
-      return const SizedBox.shrink();
-    }
-
     final listings = ref.watch(listingsProvider);
     final summaries = _buildSummary(listings);
 
     return Scaffold(
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Marketplace'),
-        backgroundColor: const Color(0xFF00A699),
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Marketplace',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C853), Color(0xFF0091EA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 0,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: summaries.length,
-        itemBuilder: (context, index) {
-          final item = summaries[index];
-          final availableTons = item.totalKg / 1000;
-          return Card(
-            margin: const EdgeInsets.only(bottom: 12),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '${item.wasteType} Waste',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Text('Available: ${availableTons.toStringAsFixed(1)} Tons'),
-                  Text('Price: ₹${item.avgPricePerKg.toStringAsFixed(0)}/kg'),
-                  Text('Recyclability: ${item.recyclability}'),
-                ],
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: ListView.builder(
+          padding: const EdgeInsets.all(16),
+          itemCount: summaries.length,
+          itemBuilder: (context, index) {
+            final item = summaries[index];
+            final availableTons = item.totalKg / 1000;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${item.wasteType} Waste',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text('Available: ${availableTons.toStringAsFixed(1)} Tons'),
+                    Text('Price: ₹${item.avgPricePerKg.toStringAsFixed(0)}/kg'),
+                    Text('Recyclability: ${item.recyclability}'),
+                  ],
+                ),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

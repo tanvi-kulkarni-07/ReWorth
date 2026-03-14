@@ -23,6 +23,10 @@ import 'ui/screens/my_listings_screen.dart';
 import 'ui/screens/recycler_map_screen.dart';
 import 'ui/screens/market_insights_screen.dart';
 import 'ui/screens/chat_screen.dart';
+// import 'ui/screens/buyer_login_screen.dart'; // Removed - using single login
+// import 'ui/screens/seller_login_screen.dart'; // Removed - using single login
+import 'ui/screens/buyer_home_screen.dart';
+import 'ui/screens/seller_home_screen.dart';
 import 'ui/screens/my_orders_screen.dart';
 import 'ui/screens/pickup_requests_screen.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -66,12 +70,16 @@ class MyApp extends ConsumerWidget {
       '/pickup_requests': (c) => const PickupRequestsScreen(),
       '/market_insights': (c) => const MarketInsightsScreen(),
       '/recycler_map': (c) => const RecyclerMapScreen(),
+      // '/buyer_login': (c) => const BuyerLoginScreen(), // Removed - using single login
+      // '/seller_login': (c) => const SellerLoginScreen(), // Removed - using single login
+      '/buyer_home': (c) => const BuyerHomeScreen(),
+      '/seller_home': (c) => const SellerHomeScreen(),
       // debugging/chat route
       '/chat': (c) => ChatScreen(),
     };
 
     // initialization future for Firebase
-    final Future<FirebaseApp> _fbInit = Firebase.initializeApp(
+    final Future<FirebaseApp> fbInit = Firebase.initializeApp(
       // options: DefaultFirebaseOptions.currentPlatform,
     );
 
@@ -82,7 +90,7 @@ class MyApp extends ConsumerWidget {
         useMaterial3: true,
       ),
       home: FutureBuilder<FirebaseApp>(
-        future: _fbInit,
+        future: fbInit,
         builder: (context, snapshot) {
           // show a simple loading indicator until Firebase is ready
           if (snapshot.connectionState != ConnectionState.done) {

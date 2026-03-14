@@ -64,29 +64,30 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final suggestionsAsync = ref.watch(realTimeAISuggestionsProvider);
 
     return Scaffold(
-      extendBodyBehindAppBar: true,
       appBar: AppBar(
-        automaticallyImplyLeading: false,
         title: const Text(
-          'ReWorth Dashboard',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 24),
+          'Dashboard',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C853), Color(0xFF0091EA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         elevation: 0,
-        centerTitle: true,
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: ReWorthUI.accentGreen,
-        onPressed: () =>
-            Navigator.of(context, rootNavigator: true).pushNamed('/chat'),
-        child: const Icon(Icons.chat, color: Colors.white),
       ),
       body: Container(
         decoration: const BoxDecoration(gradient: ReWorthUI.backgroundGradient),
         child: SafeArea(
           bottom: false,
-          child: _buildDashboardContent(suggestionsAsync),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 80),
+            child: _buildDashboardContent(suggestionsAsync),
+          ),
         ),
       ),
     );

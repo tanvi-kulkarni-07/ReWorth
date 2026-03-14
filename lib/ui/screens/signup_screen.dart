@@ -193,6 +193,28 @@ class SignupScreen extends ConsumerWidget {
                       final role = ref.read(signupRoleProvider);
                       final phone = ref.read(signupPhoneProvider);
                       final location = ref.read(signupLocationProvider);
+
+                      if (name.isEmpty ||
+                          email.isEmpty ||
+                          password.isEmpty ||
+                          phone.isEmpty ||
+                          location.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please fill in all fields'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Show loading
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) =>
+                            const Center(child: CircularProgressIndicator()),
+                      );
+
                       try {
                         await ref
                             .read(authProvider.notifier)
@@ -204,6 +226,9 @@ class SignupScreen extends ConsumerWidget {
                               phone,
                               location,
                             );
+
+                        if (context.mounted) Navigator.of(context).pop();
+
                         if (ref.read(isLoggedInProvider)) {
                           ref.read(signupNameProvider.notifier).state = '';
                           ref.read(signupEmailProvider.notifier).state = '';
@@ -212,15 +237,22 @@ class SignupScreen extends ConsumerWidget {
                           ref.read(signupLocationProvider.notifier).state = '';
                           ref.read(signupRoleProvider.notifier).state =
                               'seller';
-                          Navigator.pushReplacementNamed(context, '/home');
+                          Navigator.of(
+                            context,
+                          ).pushNamedAndRemoveUntil('/home', (route) => false);
                         }
                       } catch (e) {
-                        String msg = 'Sign up failed';
-                        if (e is FirebaseAuthException)
+                        if (context.mounted) Navigator.of(context).pop();
+                        String msg = e.toString().replaceAll('Exception: ', '');
+                        if (e is FirebaseAuthException) {
                           msg = e.message ?? e.code;
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(msg)));
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(msg),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
                       }
                     },
                     child: const Text('SIGN UP'),

@@ -18,10 +18,7 @@ class ImpactWalletScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final orders = ref.watch(ordersProvider);
-    final totalWasteKg = orders.fold<double>(
-      0,
-      (prev, o) => prev + o.weight,
-    );
+    final totalWasteKg = orders.fold<double>(0, (prev, o) => prev + o.weight);
 
     final carbonCredits = orders.fold<double>(0, (prev, o) {
       final factor = _carbonCreditsForWasteType(o.wasteType);
@@ -31,497 +28,510 @@ class ImpactWalletScreen extends ConsumerWidget {
     final totalCo2Impact = carbonCredits;
 
     return Scaffold(
-      backgroundColor: Colors.grey[50],
       appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text('Impact Wallet'),
-        backgroundColor: const Color(0xFF00A699),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: () {},
+        title: const Text(
+          'Impact Wallet',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF00C853), Color(0xFF0091EA)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
           ),
-          IconButton(icon: const Icon(Icons.share), onPressed: () {}),
-        ],
+        ),
+        elevation: 0,
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            // Premium Hero Card with Gradient
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(20),
-              padding: const EdgeInsets.all(28),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [
-                    Color(0xFF00A699),
-                    Color(0xFF00C9B7),
-                    Color(0xFF008B7D),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(24),
-                boxShadow: [
-                  BoxShadow(
-                    color: const Color(0xFF00A699).withOpacity(0.4),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Text('🌍', style: TextStyle(fontSize: 24)),
-                      ),
-                      const SizedBox(width: 12),
-                      const Text(
-                        'Carbon Credits Earned',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: 80),
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              // Premium Hero Card with Gradient
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(28),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [
+                      Color(0xFF00A699),
+                      Color(0xFF00C9B7),
+                      Color(0xFF008B7D),
                     ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                   ),
-                  const SizedBox(height: 20),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        carbonCredits.toStringAsFixed(0),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 56,
-                          fontWeight: FontWeight.bold,
-                          height: 1,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
-                        child: Text(
-                          'Credits',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.9),
-                            fontSize: 18,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF00A699).withOpacity(0.4),
+                      blurRadius: 20,
+                      offset: const Offset(0, 10),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            '🌍',
+                            style: TextStyle(fontSize: 24),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(
-                          Icons.trending_up,
-                          color: Colors.white,
-                          size: 16,
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'Total Waste Purchased: ${totalWasteKg.toStringAsFixed(0)} kg',
+                        const SizedBox(width: 12),
+                        const Text(
+                          'Carbon Credits Earned',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.95),
-                            fontSize: 13,
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
-            ),
-
-            // Key Metrics Grid
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildMetricCard(
-                          '💎',
-                          'Sustainability Score',
-                          '94/100',
-                          'Excellent',
-                          Colors.purple,
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: _buildMetricCard(
-                          '📉',
-                          'CO₂ Reduced',
-                          '${(totalCo2Impact / 1000).toStringAsFixed(1)} tons',
-                          'This year',
-                          Colors.green,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // ESG Report Download Card
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.blue.shade50,
-                          Colors.blue.shade100.withOpacity(0.3),
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.blue.shade200, width: 1),
-                    ),
-                    child: Row(
+                    const SizedBox(height: 20),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.blue.shade100,
-                            borderRadius: BorderRadius.circular(16),
+                        Text(
+                          carbonCredits.toStringAsFixed(0),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 56,
+                            fontWeight: FontWeight.bold,
+                            height: 1,
                           ),
-                          child: const Text(
-                            '📜',
-                            style: TextStyle(fontSize: 32),
+                        ),
+                        const SizedBox(width: 8),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text(
+                            'Credits',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.9),
+                              fontSize: 18,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 6,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(
+                            Icons.trending_up,
+                            color: Colors.white,
+                            size: 16,
+                          ),
+                          const SizedBox(width: 6),
+                          Text(
+                            'Total Waste Purchased: ${totalWasteKg.toStringAsFixed(0)} kg',
+                            style: TextStyle(
+                              color: Colors.white.withOpacity(0.95),
+                              fontSize: 13,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Key Metrics Grid
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricCard(
+                            '💎',
+                            'Sustainability Score',
+                            '94/100',
+                            'Excellent',
+                            Colors.purple,
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'ESG Impact Report',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Download your detailed impact',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey[600],
-                                ),
-                              ),
-                            ],
+                          child: _buildMetricCard(
+                            '📉',
+                            'CO₂ Reduced',
+                            '${(totalCo2Impact / 1000).toStringAsFixed(1)} tons',
+                            'This year',
+                            Colors.green,
                           ),
                         ),
-                        ElevatedButton(
-                          onPressed: () {
-                            // TODO: Download ESG report
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue.shade700,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    // ESG Report Download Card
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.blue.shade50,
+                            Colors.blue.shade100.withOpacity(0.3),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: Colors.blue.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade100,
+                              borderRadius: BorderRadius.circular(16),
                             ),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 20,
-                              vertical: 12,
+                            child: const Text(
+                              '📜',
+                              style: TextStyle(fontSize: 32),
                             ),
                           ),
-                          child: const Row(
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'ESG Impact Report',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Download your detailed impact',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          ElevatedButton(
+                            onPressed: () {
+                              // TODO: Download ESG report
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.blue.shade700,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 12,
+                              ),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.download, size: 18),
+                                SizedBox(width: 6),
+                                Text('Download'),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Monthly Impact Graph Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Flexible(
+                          child: const Text(
+                            'Monthly Environmental Impact',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[200],
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
                             children: [
-                              Icon(Icons.download, size: 18),
-                              SizedBox(width: 6),
-                              Text('Download'),
+                              Text(
+                                '2026',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[700],
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              Icon(
+                                Icons.keyboard_arrow_down,
+                                size: 16,
+                                color: Colors.grey[700],
+                              ),
                             ],
                           ),
                         ),
                       ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+
+                    // Graph Card
+                    Container(
+                      padding: const EdgeInsets.all(20),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.grey.withOpacity(0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          // Legend
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              _buildLegendItem(
+                                Colors.green.shade400,
+                                'CO₂ Saved',
+                              ),
+                              const SizedBox(width: 20),
+                              _buildLegendItem(
+                                Colors.blue.shade400,
+                                'Credits Earned',
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Bar Chart
+                          SizedBox(
+                            height: 200,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                _buildBarGroup('Jan', 120, 85),
+                                _buildBarGroup('Feb', 150, 110),
+                                _buildBarGroup('Mar', 180, 140),
+                                _buildBarGroup('Apr', 210, 165),
+                                _buildBarGroup('May', 195, 155),
+                                _buildBarGroup('Jun', 240, 180),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Summary Stats
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.green.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceAround,
+                              children: [
+                                _buildSummaryItem(
+                                  '1,095',
+                                  'Total Credits',
+                                  Icons.stars,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 40,
+                                  color: Colors.green.shade200,
+                                ),
+                                _buildSummaryItem(
+                                  '12.4 tons',
+                                  'CO₂ Reduced',
+                                  Icons.eco,
+                                ),
+                                Container(
+                                  width: 1,
+                                  height: 40,
+                                  color: Colors.green.shade200,
+                                ),
+                                _buildSummaryItem(
+                                  '62 Trees',
+                                  'Equivalent',
+                                  Icons.park,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 28),
+              const SizedBox(height: 28),
 
-            // Monthly Impact Graph Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: const Text(
-                          'Monthly Environmental Impact',
+              // Impact Breakdown
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Impact Breakdown',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    _buildImpactBreakdownItem(
+                      'Waste Recycled',
+                      '245 kg',
+                      0.85,
+                      Colors.green,
+                      Icons.recycling,
+                    ),
+                    _buildImpactBreakdownItem(
+                      'Plastic Diverted',
+                      '128 kg',
+                      0.65,
+                      Colors.blue,
+                      Icons.water_drop,
+                    ),
+                    _buildImpactBreakdownItem(
+                      'E-Waste Collected',
+                      '45 kg',
+                      0.45,
+                      Colors.orange,
+                      Icons.devices,
+                    ),
+                    _buildImpactBreakdownItem(
+                      'Organic Composted',
+                      '89 kg',
+                      0.55,
+                      Colors.brown,
+                      Icons.grass,
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 28),
+
+              // Achievements Section
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'Your Achievements',
                           style: TextStyle(
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.grey[200],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Text(
-                              '2026',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.grey[700],
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            Icon(
-                              Icons.keyboard_arrow_down,
-                              size: 16,
-                              color: Colors.grey[700],
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Graph Card
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
+                        TextButton(
+                          onPressed: () {},
+                          child: const Text('View All'),
                         ),
                       ],
                     ),
-                    child: Column(
-                      children: [
-                        // Legend
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            _buildLegendItem(
-                              Colors.green.shade400,
-                              'CO₂ Saved',
-                            ),
-                            const SizedBox(width: 20),
-                            _buildLegendItem(
-                              Colors.blue.shade400,
-                              'Credits Earned',
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 24),
-
-                        // Bar Chart
-                        SizedBox(
-                          height: 200,
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              _buildBarGroup('Jan', 120, 85),
-                              _buildBarGroup('Feb', 150, 110),
-                              _buildBarGroup('Mar', 180, 140),
-                              _buildBarGroup('Apr', 210, 165),
-                              _buildBarGroup('May', 195, 155),
-                              _buildBarGroup('Jun', 240, 180),
-                            ],
+                    const SizedBox(height: 16),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildAchievementBadge(
+                            '🏆',
+                            'Eco Warrior',
+                            'Recycled 100+ kg',
+                            Colors.amber,
                           ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Summary Stats
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade50,
-                            borderRadius: BorderRadius.circular(12),
+                          _buildAchievementBadge(
+                            '⭐',
+                            'Green Champion',
+                            'Top 10% users',
+                            Colors.green,
                           ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _buildSummaryItem(
-                                '1,095',
-                                'Total Credits',
-                                Icons.stars,
-                              ),
-                              Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.green.shade200,
-                              ),
-                              _buildSummaryItem(
-                                '12.4 tons',
-                                'CO₂ Reduced',
-                                Icons.eco,
-                              ),
-                              Container(
-                                width: 1,
-                                height: 40,
-                                color: Colors.green.shade200,
-                              ),
-                              _buildSummaryItem(
-                                '62 Trees',
-                                'Equivalent',
-                                Icons.park,
-                              ),
-                            ],
+                          _buildAchievementBadge(
+                            '🌟',
+                            'Carbon Hero',
+                            '1 ton CO₂ saved',
+                            Colors.blue,
                           ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // Impact Breakdown
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Impact Breakdown',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 16),
-                  _buildImpactBreakdownItem(
-                    'Waste Recycled',
-                    '245 kg',
-                    0.85,
-                    Colors.green,
-                    Icons.recycling,
-                  ),
-                  _buildImpactBreakdownItem(
-                    'Plastic Diverted',
-                    '128 kg',
-                    0.65,
-                    Colors.blue,
-                    Icons.water_drop,
-                  ),
-                  _buildImpactBreakdownItem(
-                    'E-Waste Collected',
-                    '45 kg',
-                    0.45,
-                    Colors.orange,
-                    Icons.devices,
-                  ),
-                  _buildImpactBreakdownItem(
-                    'Organic Composted',
-                    '89 kg',
-                    0.55,
-                    Colors.brown,
-                    Icons.grass,
-                  ),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 28),
-
-            // Achievements Section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Your Achievements',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                        ),
+                          _buildAchievementBadge(
+                            '💚',
+                            'Sustainability Star',
+                            '6 months active',
+                            Colors.teal,
+                          ),
+                        ],
                       ),
-                      TextButton(
-                        onPressed: () {},
-                        child: const Text('View All'),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildAchievementBadge(
-                          '🏆',
-                          'Eco Warrior',
-                          'Recycled 100+ kg',
-                          Colors.amber,
-                        ),
-                        _buildAchievementBadge(
-                          '⭐',
-                          'Green Champion',
-                          'Top 10% users',
-                          Colors.green,
-                        ),
-                        _buildAchievementBadge(
-                          '🌟',
-                          'Carbon Hero',
-                          '1 ton CO₂ saved',
-                          Colors.blue,
-                        ),
-                        _buildAchievementBadge(
-                          '💚',
-                          'Sustainability Star',
-                          '6 months active',
-                          Colors.teal,
-                        ),
-                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 32),
-          ],
+              const SizedBox(height: 32),
+            ],
+          ),
         ),
       ),
     );

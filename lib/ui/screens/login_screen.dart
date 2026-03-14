@@ -114,25 +114,68 @@ class LoginScreen extends ConsumerWidget {
                     onPressed: () async {
                       final email = ref.read(loginEmailProvider);
                       final password = ref.read(loginPasswordProvider);
+
+                      if (email.isEmpty || password.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please fill in all fields'),
+                          ),
+                        );
+                        return;
+                      }
+
+                      // Show loading indicator
+                      showDialog(
+                        context: context,
+                        barrierDismissible: false,
+                        builder: (context) =>
+                            const Center(child: CircularProgressIndicator()),
+                      );
+
                       try {
                         await ref
                             .read(authProvider.notifier)
                             .login(email, password);
+
+                        if (context.mounted) {
+                          Navigator.of(context).pop(); // Close loading
+                        }
+
                         if (ref.read(isLoggedInProvider)) {
+                          final role = ref.read(authProvider).role;
                           ref.read(loginEmailProvider.notifier).state = '';
                           ref.read(loginPasswordProvider.notifier).state = '';
-                          Navigator.pushReplacementNamed(context, '/home');
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Invalid credentials'),
-                            ),
-                          );
+
+                          if (role == 'buyer') {
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/buyer_home',
+                              (route) => false,
+                            );
+                          } else if (role == 'seller') {
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/seller_home',
+                              (route) => false,
+                            );
+                          } else {
+                            // Fallback to general home if role is not set
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                              '/home',
+                              (route) => false,
+                            );
+                          }
                         }
                       } catch (e) {
-                        ScaffoldMessenger.of(
-                          context,
-                        ).showSnackBar(SnackBar(content: Text(e.toString())));
+                        if (context.mounted) {
+                          Navigator.of(context).pop(); // Close loading
+                        }
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              e.toString().replaceAll('Exception: ', ''),
+                            ),
+                            backgroundColor: Colors.redAccent,
+                          ),
+                        );
                       }
                     },
                     child: const Text('LOGIN'),
@@ -148,7 +191,20 @@ class LoginScreen extends ConsumerWidget {
                             .read(authProvider.notifier)
                             .signInWithGoogle();
                         if (ref.read(isLoggedInProvider)) {
-                          Navigator.pushReplacementNamed(context, '/home');
+                          final role = ref.read(authProvider).role;
+                          if (role == 'buyer') {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/buyer_home',
+                            );
+                          } else if (role == 'seller') {
+                            Navigator.pushReplacementNamed(
+                              context,
+                              '/seller_home',
+                            );
+                          } else {
+                            Navigator.pushReplacementNamed(context, '/home');
+                          }
                         }
                       } catch (e) {
                         ScaffoldMessenger.of(context).showSnackBar(

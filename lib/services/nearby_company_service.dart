@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
@@ -14,6 +15,49 @@ class NearbyCompanyService {
     'Accept': 'application/json',
     'User-Agent': 'reworth/1.0 (nearby-company-search)',
   };
+
+  // Load companies from assets/companies.json
+  static Future<List<NearbyCompany>> loadCompaniesFromAssets({
+    required LatLng center,
+    int radiusMeters = 15000,
+  }) async {
+    try {
+      final jsonString = await rootBundle.loadString('assets/companies.json');
+      final companiesData = jsonDecode(jsonString) as List<dynamic>;
+
+      final companies = <NearbyCompany>[];
+
+      for (final companyData in companiesData) {
+        try {
+          final company = NearbyCompany.fromJson(
+            json: companyData as Map<String, dynamic>,
+            userLatitude: center.latitude,
+            userLongitude: center.longitude,
+          );
+          // Only include active and verified companies
+          if (companyData['isActive'] == true &&
+              companyData['isVerified'] == true) {
+            companies.add(company);
+          }
+        } catch (e) {
+          // Skip invalid company entries
+          continue;
+        }
+      }
+
+      // Sort by distance
+      companies.sort((first, second) {
+        return first.distanceMeters.compareTo(second.distanceMeters);
+      });
+
+      // Filter by radius and return all (no limit since it's from assets)
+      return companies
+          .where((company) => company.distanceMeters <= radiusMeters)
+          .toList();
+    } catch (e) {
+      throw Exception('Failed to load companies from assets: $e');
+    }
+  }
 
   static Future<List<NearbyCompany>> fetchNearbyCompanies({
     required LatLng center,
