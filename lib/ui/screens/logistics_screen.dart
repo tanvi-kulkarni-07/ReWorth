@@ -2,10 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../providers/listing_providers.dart';
 import '../../models/nearby_company.dart';
 import '../../services/location_search_service.dart';
 import '../../services/nearby_company_service.dart';
@@ -16,14 +18,14 @@ enum _LocationRecoveryAction {
   openLocationSettings,
 }
 
-class LogisticsScreen extends StatefulWidget {
+class LogisticsScreen extends ConsumerStatefulWidget {
   const LogisticsScreen({super.key});
 
   @override
-  State<LogisticsScreen> createState() => _LogisticsScreenState();
+  ConsumerState<LogisticsScreen> createState() => _LogisticsScreenState();
 }
 
-class _LogisticsScreenState extends State<LogisticsScreen> {
+class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
   static const LatLng _fallbackCenter = LatLng(20.5937, 78.9629);
   static const int _searchRadiusMeters = 15000;
   static const String _streetTileUrl =
@@ -67,6 +69,14 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   void initState() {
     super.initState();
     _startLocationSharing();
+
+    // Resolve addresses of accepted sellers when orders change.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _refreshAcceptedSellerLocations();
+      ref.listen<List<Order>>(ordersProvider, (_, __) {
+        _refreshAcceptedSellerLocations();
+      });
+    });
   }
 
   @override
@@ -83,6 +93,12 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
         .where((company) => company.matchesSearch(_searchQuery))
         .toList(growable: false);
   }
+
+  /// Cache of geocoded coordinates for accepted seller locations.
+  final Map<String, LatLng> _acceptedSellerLocations = {};
+
+  /// Cache of the last location search attempt per address.
+  final Map<String, String?> _locationSearchErrors = {};
 
   Future<void> _startLocationSharing() async {
     try {
@@ -185,6 +201,34 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
     }
     if (_showNearbyCompanies) {
       _scheduleNearbyCompaniesRefresh(force: centerOnUser);
+    }
+  }
+
+  Future<void> _refreshAcceptedSellerLocations() async {
+    final orders = ref.read(ordersProvider);
+    final accepted = orders
+        .where((o) => o.status.toLowerCase() == 'accepted')
+        .map((o) => o.sellerLocation)
+        .toSet();
+
+    for (final address in accepted) {
+      if (_acceptedSellerLocations.containsKey(address) ||
+          _locationSearchErrors.containsKey(address)) {
+        continue;
+      }
+
+      try {
+        final result = await LocationSearchService.search(address);
+        if (result != null) {
+          _acceptedSellerLocations[address] = result.position;
+        }
+      } catch (e) {
+        _locationSearchErrors[address] = e.toString();
+      }
+    }
+
+    if (mounted) {
+      setState(() {});
     }
   }
 
@@ -1125,73 +1169,203 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
   }
 
   Widget _buildSheetBody() {
+    final orders = ref.watch(ordersProvider);
+    final acceptedOrders = orders
+        .where((o) => o.status.toLowerCase() == 'accepted')
+        .toList(growable: false);
+
+    Widget _buildAcceptedOrdersPanel() {
+      if (acceptedOrders.isEmpty) return const SizedBox.shrink();
+
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Accepted Seller Requests',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 10),
+          ...acceptedOrders.map(
+            (order) {
+              final location = order.sellerLocation;
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        order.wasteType,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text('Seller: ${order.sellerName}'),
+                      Text('Quantity: ${(order.weight / 1000).toStringAsFixed(1)} tons'),
+                      Text('Location: $location'),
+                      Text('Contact: ${order.contactPhone}'),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final query = Uri.encodeComponent(location);
+                                final url =
+                                    'https://www.google.com/maps/search/?api=1&query=$query';
+                                if (await canLaunchUrl(Uri.parse(url))) {
+                                  await launchUrl(Uri.parse(url));
+                                }
+                              },
+                              icon: const Icon(Icons.map),
+                              label: const Text('Open in Maps'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF00A699),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: OutlinedButton.icon(
+                              onPressed: () async {
+                                final tel = 'tel:${order.contactPhone}';
+                                if (await canLaunchUrl(Uri.parse(tel))) {
+                                  await launchUrl(Uri.parse(tel));
+                                }
+                              },
+                              icon: const Icon(Icons.phone),
+                              label: const Text('Call'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 18),
+        ],
+      );
+    }
+
     if (_searchedLocation != null) {
-      return _buildSearchedLocationPanel();
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          _buildSearchedLocationPanel(),
+        ],
+      );
     }
 
     if (!_shareLiveLocation) {
-      return _buildEmptyState(
-        icon: Icons.location_off,
-        title: 'Live location is off',
-        message:
-            'Turn on live location to share the user location and discover nearby buyers in real time.',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          _buildEmptyState(
+            icon: Icons.location_off,
+            title: 'Live location is off',
+            message:
+                'Turn on live location to share the user location and discover nearby buyers in real time.',
+          ),
+        ],
       );
     }
 
     if (!_showNearbyCompanies) {
-      return _buildEmptyState(
-        icon: Icons.visibility_off,
-        title: 'Nearby buyers are hidden',
-        message:
-            'Turn the nearby buyers option back on to show companies on the map and in this sheet.',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          _buildEmptyState(
+            icon: Icons.visibility_off,
+            title: 'Nearby buyers are hidden',
+            message:
+                'Turn the nearby buyers option back on to show companies on the map and in this sheet.',
+          ),
+        ],
       );
     }
 
     if (_isLoadingNearbyCompanies && _nearbyCompanies.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.symmetric(vertical: 24),
-        child: Center(child: CircularProgressIndicator()),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(child: CircularProgressIndicator()),
+          ),
+        ],
       );
     }
 
     if (_nearbyCompaniesError != null && _nearbyCompanies.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.wifi_tethering_error_rounded,
-        title: 'Nearby search unavailable',
-        message: _nearbyCompaniesError!,
-        action:
-            _buildLocationRecoveryAction() ??
-            ElevatedButton.icon(
-              onPressed: () => _refreshNearbyCompanies(force: true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00A699),
-              ),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try again'),
-            ),
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          _buildEmptyState(
+            icon: Icons.wifi_tethering_error_rounded,
+            title: 'Nearby search unavailable',
+            message: _nearbyCompaniesError!,
+            action:
+                _buildLocationRecoveryAction() ??
+                ElevatedButton.icon(
+                  onPressed: () => _refreshNearbyCompanies(force: true),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF00A699),
+                  ),
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Try again'),
+                ),
+          ),
+        ],
       );
     }
 
     if (_nearbyCompanies.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.search_off,
-        title: 'No nearby buyers found',
-        message:
-            'Move the map or refresh after the location updates to search a wider nearby area.',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          _buildEmptyState(
+            icon: Icons.search_off,
+            title: 'No nearby buyers found',
+            message:
+                'Move the map or refresh after the location updates to search a wider nearby area.',
+          ),
+        ],
       );
     }
 
     if (_filteredCompanies.isEmpty) {
-      return _buildEmptyState(
-        icon: Icons.manage_search,
-        title: 'No search matches',
-        message:
-            'Try a different city, company name, or waste type like plastic, paper, metal, glass, or e-waste.',
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildAcceptedOrdersPanel(),
+          _buildEmptyState(
+            icon: Icons.manage_search,
+            title: 'No search matches',
+            message:
+                'Try a different city, company name, or waste type like plastic, paper, metal, glass, or e-waste.',
+          ),
+        ],
       );
     }
 
     return Column(
-      children: [_buildSelectedCompanyPanel(), ..._buildNearbyCompanyCards()],
+      children: [
+        _buildAcceptedOrdersPanel(),
+        _buildSelectedCompanyPanel(),
+        ..._buildNearbyCompanyCards(),
+      ],
     );
   }
 
@@ -1232,6 +1406,11 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final orders = ref.watch(ordersProvider);
+    final acceptedOrders = orders
+        .where((o) => o.status.toLowerCase() == 'accepted')
+        .toList(growable: false);
+
     final markers = <Marker>[
       if (_searchedLocation != null)
         Marker(
@@ -1283,6 +1462,19 @@ class _LogisticsScreenState extends State<LogisticsScreen> {
             size: 32,
           ),
         ),
+      // Show accepted seller locations on the map
+      for (final order in acceptedOrders)
+        if (_acceptedSellerLocations.containsKey(order.sellerLocation))
+          Marker(
+            point: _acceptedSellerLocations[order.sellerLocation]!,
+            width: 48,
+            height: 48,
+            builder: (context) => const Icon(
+              Icons.store_mall_directory,
+              color: Colors.green,
+              size: 32,
+            ),
+          ),
     ];
 
     return Scaffold(
