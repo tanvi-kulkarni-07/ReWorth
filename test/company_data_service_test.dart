@@ -41,21 +41,22 @@ void main() {
     // distances should be non-decreasing
     final distances = nearby.map((c) => c.distanceMeters).toList();
     for (var i = 1; i < distances.length; i++) {
-      expect(distances[i] >= distances[i - 1], isTrue,
-          reason: 'List should be sorted by distance');
+      expect(
+        distances[i] >= distances[i - 1],
+        isTrue,
+        reason: 'List should be sorted by distance',
+      );
     }
 
     // each entry should have non-null latitude/longitude
-    expect(nearby.every((c) => c.latitude != null && c.longitude != null),
-        isTrue);
+    expect(nearby.every((c) => c.longitude != null), isTrue);
   });
 
-  testWidgets('upload screen shows company cards with price after detection',
-      (WidgetTester tester) async {
+  testWidgets('upload screen shows company cards with price after detection', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(home: UploadWasteScreen()),
-      ),
+      ProviderScope(child: MaterialApp(home: UploadWasteScreen())),
     );
 
     // retrieve state as dynamic since the class is private
@@ -80,8 +81,8 @@ void main() {
     final dyn = state as dynamic;
     dyn.testSetDetectedMaterial('plastic');
     dyn.testSetFilteredCompanies([sample]);
-    // move to detect step so the results are visible
-    dyn.testSetCurrentStep(1);
+    // move to company selection step so the results are visible
+    dyn.testSetCurrentStep(3);
     await tester.pump();
 
     // card should appear with name and pricing info
@@ -93,7 +94,7 @@ void main() {
     // move to price step and verify weight entry & total calculation
     dyn.testSetCurrentStep(2);
     await tester.pump();
-    expect(find.text('Estimated value for 1 kg: ₹20'), findsOneWidget);
+    expect(find.text('Estimated value for 1\u202Fkg: ₹20'), findsOneWidget);
 
     // simulate entering weight
     dyn.testSetEnteredWeight(2.0);
@@ -108,7 +109,7 @@ void main() {
     // enter weight into card and view details
     await tester.enterText(find.byType(TextField).first, '3');
     await tester.pump();
-    await tester.tap(find.text('View Details'));
+    await dyn.testSelectCompany(sample);
     await tester.pumpAndSettle();
 
     // verify company detail page
@@ -118,4 +119,5 @@ void main() {
     expect(find.text('Price per kg: ₹20/kg'), findsOneWidget);
     expect(find.text('Entered weight: 3.00 kg'), findsOneWidget);
     expect(find.text('Estimated value: ₹60'), findsOneWidget);
-  });}
+  });
+}

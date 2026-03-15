@@ -4,10 +4,7 @@ import '../../models/recycler_company.dart';
 import 'company_details_screen.dart';
 
 class RecyclerCompaniesScreen extends StatelessWidget {
-  const RecyclerCompaniesScreen({
-    Key? key,
-    required this.companies,
-  }) : super(key: key);
+  const RecyclerCompaniesScreen({super.key, required this.companies});
 
   final List<RecyclerCompany> companies;
 

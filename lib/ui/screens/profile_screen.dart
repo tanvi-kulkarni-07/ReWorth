@@ -94,14 +94,21 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    name,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.edit, size: 20, color: Colors.blue),
+                    onPressed: () => _showEditNameDialog(context, name),
+                    tooltip: 'Edit display name',
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -369,6 +376,42 @@ class _ProfilePageState extends ConsumerState<ProfilePage> {
         ),
       ),
     );
+  }
+
+  Future<void> _showEditNameDialog(
+    BuildContext context,
+    String currentName,
+  ) async {
+    final controller = TextEditingController(text: currentName);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: const Text('Edit display name'),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'Name',
+              hintText: 'Enter a name to show in listings',
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(null),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(controller.text.trim()),
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (result != null && result.isNotEmpty) {
+      await ref.read(authProvider.notifier).updateProfile(name: result);
+    }
   }
 
   Widget _buildSectionCard(String title, IconData icon, Widget child) {

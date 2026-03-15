@@ -52,6 +52,19 @@ class RecyclerCompanyService {
     final normalized = detectedLabel.toLowerCase();
     final companies = source ?? demoCompanies;
 
+    // Map some labels to their corresponding waste types
+    final labelToWasteType = {
+      'e-waste': 'electronics',
+      'wet waste': 'organic',
+      'paper waste': 'paper',
+      'crop waste': 'organic',
+      'farm waste': 'organic',
+      'flower waste': 'organic',
+      // Add more mappings as needed
+    };
+
+    final effectiveLabel = labelToWasteType[normalized] ?? normalized;
+
     // a simple substring check means labels such as "medium_plastic",
     // "plastic_bottle" or "plastic" will all match a company whose
     // wasteTypes list contains "plastic".  This keeps the matcher very
@@ -59,7 +72,7 @@ class RecyclerCompanyService {
     return companies.where((c) {
       return c.wasteTypes
           .map((w) => w.toLowerCase())
-          .any((w) => normalized.contains(w));
+          .any((w) => effectiveLabel.contains(w) || w.contains(effectiveLabel));
     }).toList();
   }
 }

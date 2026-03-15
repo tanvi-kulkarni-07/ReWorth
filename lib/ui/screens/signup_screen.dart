@@ -151,7 +151,7 @@ class SignupScreen extends ConsumerWidget {
                         const SizedBox(height: 16),
                         GradientOutline(
                           child: DropdownButtonFormField<String>(
-                            value: ref.watch(signupRoleProvider),
+                            initialValue: ref.watch(signupRoleProvider),
                             items: const [
                               DropdownMenuItem(
                                 value: 'seller',
@@ -163,8 +163,9 @@ class SignupScreen extends ConsumerWidget {
                               ),
                             ],
                             onChanged: (v) {
-                              if (v != null)
+                              if (v != null) {
                                 ref.read(signupRoleProvider.notifier).state = v;
+                              }
                             },
                             decoration:
                                 ReWorthUI.inputDecoration(

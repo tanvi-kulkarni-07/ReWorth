@@ -64,22 +64,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     final suggestionsAsync = ref.watch(realTimeAISuggestionsProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Dashboard',
-          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-        ),
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF00C853), Color(0xFF0091EA)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-        ),
-        elevation: 0,
-      ),
       body: Container(
         decoration: const BoxDecoration(gradient: ReWorthUI.backgroundGradient),
         child: SafeArea(

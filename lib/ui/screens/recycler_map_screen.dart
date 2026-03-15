@@ -12,7 +12,7 @@ import '../../services/company_data_service.dart';
 /// shows them as markers on a Google map.  Tapping a marker displays a
 /// bottom sheet with the details (and a button to open the website).
 class RecyclerMapScreen extends StatefulWidget {
-  const RecyclerMapScreen({Key? key}) : super(key: key);
+  const RecyclerMapScreen({super.key});
 
   @override
   State<RecyclerMapScreen> createState() => _RecyclerMapScreenState();
@@ -68,14 +68,18 @@ class _RecyclerMapScreenState extends State<RecyclerMapScreen> {
             children: [
               Text(
                 company.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text('Category: ${company.category}'),
               Text('City: ${company.city}'),
               Text('Waste types: ${company.wasteTypes.join(', ')}'),
               Text('Phone: ${company.phone}'),
-              if (company.website.isNotEmpty) Text('Website: ${company.website}'),
+              if (company.website.isNotEmpty)
+                Text('Website: ${company.website}'),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,

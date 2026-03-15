@@ -64,7 +64,7 @@ final userListingsProvider = StreamProvider<List<Listing>>((ref) {
         'sellerId',
         isEqualTo: user.email,
       ) // Using email as ID based on auth_provider
-      .orderBy('createdAt', descending: true)
+      .orderBy('createdAt'.trim(), descending: true)
       .snapshots()
       .map(
         (snapshot) =>

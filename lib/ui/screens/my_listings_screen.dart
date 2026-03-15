@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../data/order_data.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/listing_providers.dart';
 
 class MyListingsScreen extends ConsumerWidget {
   const MyListingsScreen({super.key});
@@ -17,7 +17,10 @@ class MyListingsScreen extends ConsumerWidget {
     }
 
     final seller = ref.watch(userNameProvider) ?? '';
-    final myOrders = orders.where((o) => o['sellerName'] == seller).toList();
+    final myListings = ref
+        .watch(listingsProvider)
+        .where((listing) => listing.sellerName == seller)
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -38,7 +41,7 @@ class MyListingsScreen extends ConsumerWidget {
       ),
       body: Padding(
         padding: const EdgeInsets.only(bottom: 80),
-        child: myOrders.isEmpty
+        child: myListings.isEmpty
             ? const Center(
                 child: Text(
                   'No listings yet',
@@ -47,9 +50,9 @@ class MyListingsScreen extends ConsumerWidget {
               )
             : ListView.builder(
                 padding: const EdgeInsets.all(16),
-                itemCount: myOrders.length,
+                itemCount: myListings.length,
                 itemBuilder: (context, index) {
-                  final order = myOrders[index];
+                  final listing = myListings[index];
                   return Card(
                     margin: const EdgeInsets.only(bottom: 12),
                     child: Padding(
@@ -58,17 +61,22 @@ class MyListingsScreen extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            order['wasteType'] ?? '',
+                            listing.wasteType,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Text('Quantity: ${order['quantity'] ?? ''}'),
-                          Text('Company: ${order['companyName'] ?? ''}'),
-                          Text('Location: ${order['location'] ?? ''}'),
-                          Text('Status: ${order['status'] ?? ''}'),
+                          Text(
+                            'Weight: ${listing.weightKg.toStringAsFixed(1)} kg',
+                          ),
+                          Text(
+                            'Price/kg: ₹${listing.pricePerKg.toStringAsFixed(0)}',
+                          ),
+                          Text('Company: ${listing.companyName}'),
+                          Text('Location: ${listing.sellerLocation}'),
+                          Text('Status: ${listing.status}'),
                         ],
                       ),
                     ),

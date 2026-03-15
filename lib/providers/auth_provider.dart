@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart'; // for PlatformException
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,6 +10,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 /// Simple model representing authentication information.
 class AuthState {
   final bool isLoggedIn;
+  final String? userId;
   final String? email;
   final String? name;
   final String? role;
@@ -20,6 +20,7 @@ class AuthState {
 
   const AuthState({
     this.isLoggedIn = false,
+    this.userId,
     this.email,
     this.name,
     this.role,
@@ -30,6 +31,7 @@ class AuthState {
 
   AuthState copyWith({
     bool? isLoggedIn,
+    String? userId,
     String? email,
     String? name,
     String? role,
@@ -39,6 +41,7 @@ class AuthState {
   }) {
     return AuthState(
       isLoggedIn: isLoggedIn ?? this.isLoggedIn,
+      userId: userId ?? this.userId,
       email: email ?? this.email,
       name: name ?? this.name,
       role: role ?? this.role,
@@ -54,6 +57,7 @@ class AuthState {
       other is AuthState &&
           runtimeType == other.runtimeType &&
           isLoggedIn == other.isLoggedIn &&
+          userId == other.userId &&
           email == other.email &&
           name == other.name &&
           role == other.role &&
@@ -62,6 +66,7 @@ class AuthState {
   @override
   int get hashCode =>
       isLoggedIn.hashCode ^
+      userId.hashCode ^
       email.hashCode ^
       name.hashCode ^
       role.hashCode ^
@@ -350,22 +355,46 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   // shared preferences helpers ------------------------------------------------
+  String _generateLocalUserId() {
+    // A simple stable ID persisted on the device for identifying the local user
+    // when not logged in. It is not intended to be secure.
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final randomPart = DateTime.now().microsecondsSinceEpoch % 100000;
+    return 'local-$timestamp-$randomPart';
+  }
+
   Future<void> _loadPrefs() async {
     _prefs ??= await SharedPreferences.getInstance();
     final logged = _prefs?.getBool('loggedIn') ?? false;
-    if (logged) {
-      state = AuthState(
-        isLoggedIn: true,
-        email: _prefs?.getString('email'),
-        name: _prefs?.getString('name'),
-        role: _prefs?.getString('role'),
-      );
+
+    var userId = _prefs?.getString('userId');
+    if (userId == null) {
+      userId = _generateLocalUserId();
+      await _prefs!.setString('userId', userId);
     }
+
+    final name = _prefs?.getString('name');
+    final role = _prefs?.getString('role');
+    final phone = _prefs?.getString('phone');
+    final location = _prefs?.getString('location');
+
+    state = AuthState(
+      isLoggedIn: logged,
+      userId: userId,
+      email: logged ? _prefs?.getString('email') : null,
+      name: name,
+      role: role,
+      phone: phone,
+      location: location,
+    );
   }
 
   Future<void> _savePrefs(AuthState s) async {
     _prefs ??= await SharedPreferences.getInstance();
     await _prefs!.setBool('loggedIn', s.isLoggedIn);
+    if (s.userId != null) {
+      await _prefs!.setString('userId', s.userId!);
+    }
     if (s.email != null) await _prefs!.setString('email', s.email!);
     if (s.name != null) await _prefs!.setString('name', s.name!);
     if (s.role != null) await _prefs!.setString('role', s.role!);
@@ -375,7 +404,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
 
   Future<void> _clearPrefs() async {
     _prefs ??= await SharedPreferences.getInstance();
+    final retainedUserId = _prefs!.getString('userId');
     await _prefs!.clear();
+    if (retainedUserId != null) {
+      await _prefs!.setString('userId', retainedUserId);
+    }
+  }
+
+  /// Updates the locally stored profile information (name/role/phone/location).
+  /// This can be used even when the user is not logged-in, enabling a simple
+  /// "profile" experience for offline or guest users.
+  Future<void> updateProfile({
+    String? name,
+    String? role,
+    String? phone,
+    String? location,
+  }) async {
+    state = state.copyWith(
+      name: name,
+      role: role,
+      phone: phone,
+      location: location,
+    );
+    await _savePrefs(state);
   }
 }
 
@@ -402,6 +453,9 @@ final userPhoneProvider = Provider<String?>(
 );
 final userLocationProvider = Provider<String?>(
   (ref) => ref.watch(authProvider).location,
+);
+final userIdProvider = Provider<String?>(
+  (ref) => ref.watch(authProvider).userId,
 );
 
 // simple field providers that hold local form state
