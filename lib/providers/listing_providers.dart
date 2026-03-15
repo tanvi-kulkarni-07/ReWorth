@@ -337,6 +337,7 @@ class Order {
   final String pickupDate;
   final String pickupTime;
   final String progressStatus;
+  final String contactPhone;
 
   Order({
     required this.wasteType,
@@ -349,6 +350,7 @@ class Order {
     this.pickupDate = '',
     this.pickupTime = '',
     this.progressStatus = '',
+    this.contactPhone = '',
   });
 
   Map<String, dynamic> toJson() => {
@@ -362,6 +364,7 @@ class Order {
         'pickupDate': pickupDate,
         'pickupTime': pickupTime,
         'progressStatus': progressStatus,
+        'contactPhone': contactPhone,
       };
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -376,6 +379,7 @@ class Order {
       pickupDate: json['pickupDate'] as String? ?? '',
       pickupTime: json['pickupTime'] as String? ?? '',
       progressStatus: json['progressStatus'] as String? ?? '',
+      contactPhone: json['contactPhone'] as String? ?? '',
     );
   }
 }
@@ -401,28 +405,94 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
       // Provide some sample orders for buyers to see in the UI.
       state = [
         Order(
-          wasteType: 'Banana Tree Waste',
-          weight: 10000,
-          sellerName: 'Farmer Ramesh Patil',
-          companyName: 'Green Agro Recycling Ltd',
-          sellerLocation: 'Jalgaon, Maharashtra',
-          status: 'Confirmed',
-          pickupLocation: 'Jalgaon, Maharashtra',
-          pickupDate: '22 March 2026',
-          pickupTime: '10:30 AM',
-          progressStatus: 'Pickup Scheduled',
+          wasteType: 'Plastic Waste',
+          weight: 2500,
+          sellerName: 'Arjun More',
+          companyName: 'Plastic Waste Solutions',
+          sellerLocation: 'Pune',
+          contactPhone: '9823415678',
+          status: 'pending',
         ),
         Order(
-          wasteType: 'Plastic Bottles',
-          weight: 2000,
-          sellerName: 'Scrap Dealer Amit Sharma',
+          wasteType: 'Metal Waste',
+          weight: 1800,
+          sellerName: 'Kavya Patil',
+          companyName: 'Metal Recyclers Inc.',
+          sellerLocation: 'Mumbai',
+          contactPhone: '9765432198',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'Paper Waste',
+          weight: 3000,
+          sellerName: 'Rohan Jadhav',
+          companyName: 'Paper Recycling Hub',
+          sellerLocation: 'Nashik',
+          contactPhone: '9876123450',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'E-Waste',
+          weight: 1200,
+          sellerName: 'Snehal Desai',
+          companyName: 'E-Waste Specialists',
+          sellerLocation: 'Pune',
+          contactPhone: '9890345671',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'Glass Waste',
+          weight: 2100,
+          sellerName: 'Vishal Shinde',
+          companyName: 'Glass Recovery Co.',
+          sellerLocation: 'Kolhapur',
+          contactPhone: '9812347896',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'Plastic Waste',
+          weight: 2900,
+          sellerName: 'Meera Kulkarni',
           companyName: 'EcoPlastic Industries',
-          sellerLocation: 'Pune, Maharashtra',
-          status: 'Rejected',
-          pickupLocation: '',
-          pickupDate: '',
-          pickupTime: '',
-          progressStatus: '',
+          sellerLocation: 'Aurangabad',
+          contactPhone: '9887654320',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'Metal Waste',
+          weight: 3400,
+          sellerName: 'Sagar Chavan',
+          companyName: 'Metal Processing Co',
+          sellerLocation: 'Nagpur',
+          contactPhone: '9754312689',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'Paper Waste',
+          weight: 1700,
+          sellerName: 'Pooja Sawant',
+          companyName: 'Green Paper Mills',
+          sellerLocation: 'Satara',
+          contactPhone: '9834567123',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'E-Waste',
+          weight: 2300,
+          sellerName: 'Nikhil Pawar',
+          companyName: 'Tech Waste Solutions',
+          sellerLocation: 'Pune',
+          contactPhone: '9845612378',
+          status: 'pending',
+        ),
+        Order(
+          wasteType: 'Plastic Waste',
+          weight: 1500,
+          sellerName: 'Tanvi Joshi',
+          companyName: 'EcoFriendly Plastics',
+          sellerLocation: 'Mumbai',
+          contactPhone: '9867541230',
+          status: 'pending',
         ),
       ];
       await _save();
@@ -455,6 +525,7 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
       pickupDate: oldOrder.pickupDate,
       pickupTime: oldOrder.pickupTime,
       progressStatus: oldOrder.progressStatus,
+      contactPhone: oldOrder.contactPhone,
     );
     state = copy;
     _save();

@@ -1,7 +1,8 @@
-﻿import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../providers/auth_provider.dart';
+import '../../providers/listing_providers.dart';
 import 'dashboard_screen.dart';
 
 class MyOrdersScreen extends ConsumerWidget {
@@ -19,20 +20,7 @@ class MyOrdersScreen extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final companyName = ref.watch(userNameProvider) ?? '';
-    final statusStages = ['pending', 'accepted', 'in_transit', 'completed'];
-    final stageLabels = {
-      'pending': 'Pending',
-      'accepted': 'Accepted',
-      'in_transit': 'In Transit',
-      'completed': 'Completed',
-    };
-
-    final requestsStream = FirebaseFirestore.instance
-        .collection('pickup_requests')
-        .where('companyName', isEqualTo: companyName)
-        .orderBy('createdAt'.trim(), descending: true)
-        .snapshots();
+    final orders = ref.watch(ordersProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -51,78 +39,84 @@ class MyOrdersScreen extends ConsumerWidget {
         ),
         elevation: 0,
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: requestsStream,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-
-          final docs = snapshot.data?.docs ?? [];
-          if (docs.isEmpty) {
-            return const Center(
+      body: orders.isEmpty
+          ? const Center(
               child: Text(
-                'No orders yet',
+                'No seller requests yet.',
                 style: TextStyle(color: Colors.white70),
               ),
-            );
-          }
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: orders.length,
+              itemBuilder: (context, index) {
+                final order = orders[index];
+                final accepted = order.status.toLowerCase() == 'accepted';
+                final rejected = order.status.toLowerCase() == 'rejected';
 
-          return ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data();
-              final status =
-                  (data['status'] as String?)?.toLowerCase() ?? 'pending';
-              final currentStageIndex = statusStages.indexOf(status);
-              final canAdvance =
-                  currentStageIndex >= 0 &&
-                  currentStageIndex < statusStages.length - 1;
-              final nextStage = canAdvance
-                  ? statusStages[currentStageIndex + 1]
-                  : null;
-
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        data['wasteType'] as String? ?? 'Unknown waste',
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text('Seller: ${data['sellerName'] ?? 'Unknown'}'),
-                      Text('Weight: ${data['weight'] ?? '-'} kg'),
-                      Text('Status: ${stageLabels[status] ?? status}'),
-                      const SizedBox(height: 12),
-                      if (canAdvance && nextStage != null)
-                        ElevatedButton(
-                          onPressed: () async {
-                            await FirebaseFirestore.instance
-                                .collection('pickup_requests')
-                                .doc(doc.id)
-                                .update({'status': nextStage});
-                          },
-                          child: Text(
-                            'Mark as ${stageLabels[nextStage] ?? nextStage}',
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          order.wasteType,
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                    ],
+                        const SizedBox(height: 8),
+                        Text('Seller: ${order.sellerName}'),
+                        Text('Quantity: ${(order.weight / 1000).toStringAsFixed(1)} tons'),
+                        Text('Location: ${order.sellerLocation}'),
+                        Text('Contact: ${order.contactPhone}'),
+                        const SizedBox(height: 12),
+                        if (!accepted && !rejected)
+                          Row(
+                            children: [
+                              Expanded(
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    ref
+                                        .read(ordersProvider.notifier)
+                                        .updateOrderStatus(index, 'accepted');
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: const Color(0xFF00A699),
+                                  ),
+                                  child: const Text('Accept'),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: OutlinedButton(
+                                  onPressed: () {
+                                    ref
+                                        .read(ordersProvider.notifier)
+                                        .updateOrderStatus(index, 'rejected');
+                                  },
+                                  child: const Text('Reject'),
+                                ),
+                              ),
+                            ],
+                          )
+                        else
+                          Text(
+                            accepted ? 'Accepted' : 'Rejected',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: accepted ? Colors.green : Colors.red,
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
-                ),
-              );
-            },
-          );
-        },
-      ),
+                );
+              },
+            ),
     );
   }
 }
