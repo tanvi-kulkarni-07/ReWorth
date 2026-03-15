@@ -25,15 +25,15 @@ class WasteListing {
   });
 
   Map<String, dynamic> toJson() => {
-        'wasteType': wasteType,
-        'weightKg': weightKg,
-        'pricePerKg': pricePerKg,
-        'totalValue': totalValue,
-        'companyName': companyName,
-        'sellerName': sellerName,
-        'sellerLocation': sellerLocation,
-        'status': status,
-      };
+    'wasteType': wasteType,
+    'weightKg': weightKg,
+    'pricePerKg': pricePerKg,
+    'totalValue': totalValue,
+    'companyName': companyName,
+    'sellerName': sellerName,
+    'sellerLocation': sellerLocation,
+    'status': status,
+  };
 
   factory WasteListing.fromJson(Map<String, dynamic> json) {
     return WasteListing(
@@ -95,6 +95,7 @@ class ListingsNotifier extends StateNotifier<List<WasteListing>> {
 
 /// A simple pickup request generated when a seller chooses a company.
 class PickupRequest {
+  final String sellerId;
   final String sellerName;
   final String wasteType;
   final double weight;
@@ -102,6 +103,7 @@ class PickupRequest {
   String status; // pending, accepted, completed
 
   PickupRequest({
+    required this.sellerId,
     required this.sellerName,
     required this.wasteType,
     required this.weight,
@@ -110,16 +112,21 @@ class PickupRequest {
   });
 
   Map<String, dynamic> toJson() => {
-        'sellerName': sellerName,
-        'wasteType': wasteType,
-        'weight': weight,
-        'companyName': companyName,
-        'status': status,
-      };
+    'sellerId': sellerId,
+    'sellerName': sellerName,
+    'wasteType': wasteType,
+    'weight': weight,
+    'companyName': companyName,
+    'status': status,
+  };
 
   factory PickupRequest.fromJson(Map<String, dynamic> json) {
     return PickupRequest(
-      sellerName: json['sellerName'] as String,
+      sellerId:
+          json['sellerId'] as String? ??
+          json['sellerName'] as String? ??
+          'unknown',
+      sellerName: json['sellerName'] as String? ?? '',
       wasteType: json['wasteType'] as String,
       weight: (json['weight'] as num).toDouble(),
       companyName: json['companyName'] as String,
@@ -160,6 +167,15 @@ class PickupRequestsNotifier extends StateNotifier<List<PickupRequest>> {
     state = [...state, req];
     _save();
   }
+
+  void updateRequest(int index, PickupRequest updated) {
+    final copy = [...state];
+    if (index >= 0 && index < copy.length) {
+      copy[index] = updated;
+      state = copy;
+      _save();
+    }
+  }
 }
 
 /// Represents an order placed by a buyer when they interact with a listing.
@@ -189,17 +205,17 @@ class Order {
   });
 
   Map<String, dynamic> toJson() => {
-        'wasteType': wasteType,
-        'weight': weight,
-        'sellerName': sellerName,
-        'companyName': companyName,
-        'sellerLocation': sellerLocation,
-        'status': status,
-        'pickupLocation': pickupLocation,
-        'pickupDate': pickupDate,
-        'pickupTime': pickupTime,
-        'progressStatus': progressStatus,
-      };
+    'wasteType': wasteType,
+    'weight': weight,
+    'sellerName': sellerName,
+    'companyName': companyName,
+    'sellerLocation': sellerLocation,
+    'status': status,
+    'pickupLocation': pickupLocation,
+    'pickupDate': pickupDate,
+    'pickupTime': pickupTime,
+    'progressStatus': progressStatus,
+  };
 
   factory Order.fromJson(Map<String, dynamic> json) {
     return Order(
@@ -230,7 +246,9 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
     if (raw != null) {
       try {
         final list = json.decode(raw) as List<dynamic>;
-        state = list.map((e) => Order.fromJson(e as Map<String, dynamic>)).toList();
+        state = list
+            .map((e) => Order.fromJson(e as Map<String, dynamic>))
+            .toList();
       } catch (_) {
         state = [];
       }
@@ -301,11 +319,14 @@ class OrdersNotifier extends StateNotifier<List<Order>> {
 // providers
 final listingsProvider =
     StateNotifierProvider<ListingsNotifier, List<WasteListing>>(
-        (ref) => ListingsNotifier());
+      (ref) => ListingsNotifier(),
+    );
 
 final pickupRequestsProvider =
     StateNotifierProvider<PickupRequestsNotifier, List<PickupRequest>>(
-        (ref) => PickupRequestsNotifier());
+      (ref) => PickupRequestsNotifier(),
+    );
 
 final ordersProvider = StateNotifierProvider<OrdersNotifier, List<Order>>(
-    (ref) => OrdersNotifier());
+  (ref) => OrdersNotifier(),
+);

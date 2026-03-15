@@ -95,9 +95,9 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
               _ActionButton(
                 text: _pages[_currentIndex].buttonText,
                 onPressed: () {
-                  if (_currentIndex == _pages.length - 1)
+                  if (_currentIndex == _pages.length - 1) {
                     _finishOnboarding();
-                  else {
+                  } else {
                     _controller.nextPage(
                       duration: const Duration(milliseconds: 400),
                       curve: Curves.easeInOut,
@@ -302,7 +302,7 @@ class _ActionButton extends StatelessWidget {
                 shadowColor: Colors.transparent,
               ).copyWith(
                 // gradient via decoration
-                backgroundColor: MaterialStateProperty.resolveWith(
+                backgroundColor: WidgetStateProperty.resolveWith(
                   (states) => Colors.transparent,
                 ),
               ),

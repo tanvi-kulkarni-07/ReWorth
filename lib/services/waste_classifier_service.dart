@@ -79,6 +79,8 @@ class WastePrediction {
 }
 
 class WasteClassifierService {
+  WasteClassifierService();
+
   static const String _modelAssetPath = 'assets/model_unquant.tflite';
   static const String _labelsAssetPath = 'assets/labels.txt';
   static const double _minimumReliableConfidence = 60.0;
@@ -119,18 +121,103 @@ class WasteClassifierService {
       // some test environments), we fall back to a deterministic no-op mode.
       debugPrint('WasteClassifierService.load failed: $e');
       _interpreter = null;
-      _labels = await _loadLabels().catchError((_) => ['Plastic', 'Paper', 'Metal']);
+      _labels = await _loadLabels().catchError(
+        (_) => ['Plastic', 'Paper', 'Metal'],
+      );
+    }
+  }
+
+  // Constructor for use in isolate with preloaded data
+  WasteClassifierService.fromData(Uint8List modelBytes, List<String> labels) {
+    _labels = labels;
+    try {
+      final options = InterpreterOptions()
+        ..threads = 1; // Use fewer threads in isolate
+      _interpreter = Interpreter.fromBuffer(modelBytes, options: options);
+
+      final inputTensor = _interpreter!.getInputTensor(0);
+      final outputTensor = _interpreter!.getOutputTensor(0);
+      _inputShape = inputTensor.shape;
+      _outputShape = outputTensor.shape;
+      _inputType = inputTensor.type;
+      _outputType = outputTensor.type;
+    } catch (e) {
+      debugPrint('WasteClassifierService.fromData failed: $e');
+      _interpreter = null;
     }
   }
 
   Future<WasteClassificationResult> classify(File imageFile) async {
-    if (_interpreter == null) {
-      await load();
-    }
+    final bytes = await imageFile.readAsBytes();
+    return classifyBytes(bytes);
+  }
 
-    // If interpreter failed to load (e.g., on desktop without TFLite), return a
-    // deterministic fallback so the UI can still function in tests.
-    if (_interpreter == null) {
+  Future<WasteClassificationResult> classifyBytes(Uint8List imageBytes) async {
+    try {
+      if (_interpreter == null) {
+        await load();
+      }
+
+      // If interpreter failed to load (e.g., on desktop without TFLite), return a
+      // deterministic fallback so the UI can still function in tests.
+      if (_interpreter == null) {
+        final label = _labels.isNotEmpty ? _labels.first : 'Plastic';
+        return WasteClassificationResult(
+          label: label,
+          confidence: 100,
+          isReliable: true,
+          topPredictions: [WastePrediction(label: label, confidence: 100)],
+        );
+      }
+
+      final inputHeight = _inputShape.length > 1 ? _inputShape[1] : 224;
+      final inputWidth = _inputShape.length > 2 ? _inputShape[2] : 224;
+      final input = await compute(_preprocessImage, <String, Object>{
+        'bytes': imageBytes,
+        'inputHeight': inputHeight,
+        'inputWidth': inputWidth,
+        'isFloatModel': _inputType == TensorType.float32,
+      });
+      final output = _buildOutputTensor();
+
+      _interpreter!.run(input, output);
+
+      final scores = _normalizeScores(_extractScores(output));
+      if (scores.isEmpty) {
+        throw StateError('The model returned an empty prediction.');
+      }
+
+      final rankedPredictions = List.generate(
+        scores.length,
+        (index) {
+          final rawLabel = index < _labels.length ? _labels[index] : 'unknown';
+          return WastePrediction(
+            label: _formatLabel(rawLabel),
+            confidence: scores[index] * 100,
+          );
+        },
+      )..sort((first, second) => second.confidence.compareTo(first.confidence));
+
+      final bestPrediction = rankedPredictions.first;
+      final secondPrediction = rankedPredictions.length > 1
+          ? rankedPredictions[1]
+          : const WastePrediction(label: 'Unknown waste', confidence: 0);
+      final winningMargin =
+          bestPrediction.confidence - secondPrediction.confidence;
+      final isReliable =
+          bestPrediction.confidence >= _minimumReliableConfidence &&
+          winningMargin >= _minimumWinningMargin;
+
+      return WasteClassificationResult(
+        label: isReliable ? bestPrediction.label : 'Uncertain result',
+        confidence: bestPrediction.confidence,
+        isReliable: isReliable,
+        topPredictions: rankedPredictions.take(3).toList(growable: false),
+      );
+    } catch (e, st) {
+      debugPrint('WasteClassifierService.classifyBytes failed: $e');
+      debugPrint('$st');
+
       final label = _labels.isNotEmpty ? _labels.first : 'Plastic';
       return WasteClassificationResult(
         label: label,
@@ -139,49 +226,6 @@ class WasteClassifierService {
         topPredictions: [WastePrediction(label: label, confidence: 100)],
       );
     }
-
-    final bytes = await imageFile.readAsBytes();
-    final inputHeight = _inputShape.length > 1 ? _inputShape[1] : 224;
-    final inputWidth = _inputShape.length > 2 ? _inputShape[2] : 224;
-    final input = await compute(_preprocessImage, <String, Object>{
-      'bytes': bytes,
-      'inputHeight': inputHeight,
-      'inputWidth': inputWidth,
-      'isFloatModel': _inputType == TensorType.float32,
-    });
-    final output = _buildOutputTensor();
-
-    _interpreter!.run(input, output);
-
-    final scores = _normalizeScores(_extractScores(output));
-    if (scores.isEmpty) {
-      throw StateError('The model returned an empty prediction.');
-    }
-
-    final rankedPredictions = List.generate(scores.length, (index) {
-      final rawLabel = index < _labels.length ? _labels[index] : 'unknown';
-      return WastePrediction(
-        label: _formatLabel(rawLabel),
-        confidence: scores[index] * 100,
-      );
-    })..sort((first, second) => second.confidence.compareTo(first.confidence));
-
-    final bestPrediction = rankedPredictions.first;
-    final secondPrediction = rankedPredictions.length > 1
-        ? rankedPredictions[1]
-        : const WastePrediction(label: 'Unknown waste', confidence: 0);
-    final winningMargin =
-        bestPrediction.confidence - secondPrediction.confidence;
-    final isReliable =
-        bestPrediction.confidence >= _minimumReliableConfidence &&
-        winningMargin >= _minimumWinningMargin;
-
-    return WasteClassificationResult(
-      label: isReliable ? bestPrediction.label : 'Uncertain result',
-      confidence: bestPrediction.confidence,
-      isReliable: isReliable,
-      topPredictions: rankedPredictions.take(3).toList(growable: false),
-    );
   }
 
   Future<List<String>> _loadLabels() async {

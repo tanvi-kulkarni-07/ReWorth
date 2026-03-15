@@ -4,10 +4,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 import '../../models/recycler_company.dart';
 
 class CompanyDetailsScreen extends StatelessWidget {
-  const CompanyDetailsScreen({
-    Key? key,
-    required this.company,
-  }) : super(key: key);
+  const CompanyDetailsScreen({super.key, required this.company});
 
   final RecyclerCompany company;
 
@@ -22,9 +19,9 @@ class CompanyDetailsScreen extends StatelessWidget {
     if (await canLaunchUrlString(company.website)) {
       await launchUrlString(company.website);
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not launch website')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Could not launch website')));
     }
   }
 
@@ -69,10 +66,7 @@ class CompanyDetailsScreen extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            '$title: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
+          Text('$title: ', style: const TextStyle(fontWeight: FontWeight.bold)),
           Expanded(child: Text(value)),
         ],
       ),

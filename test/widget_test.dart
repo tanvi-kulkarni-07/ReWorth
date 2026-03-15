@@ -13,9 +13,7 @@ import 'package:reworth/providers/auth_provider.dart';
 import 'package:reworth/ui/screens/dashboard_screen.dart';
 import 'package:reworth/ui/screens/upload_waste_screen.dart';
 import 'package:reworth/ui/screens/my_listings_screen.dart';
-import 'package:reworth/ui/screens/market_insights_screen.dart';
 import 'package:reworth/ui/screens/pickup_requests_screen.dart';
-
 
 void main() {
   testWidgets('app builds', (WidgetTester tester) async {
@@ -31,9 +29,7 @@ void main() {
           userNameProvider.overrideWithValue('Tester'),
           userRoleProvider.overrideWithValue('seller'),
         ],
-        child: MaterialApp(
-          home: const DashboardScreen(),
-        ),
+        child: MaterialApp(home: const DashboardScreen()),
       ),
     );
 
@@ -44,7 +40,10 @@ void main() {
     expect(find.byType(DashboardScreen), findsOneWidget);
 
     // Scroll a bit to bring quick action buttons into view.
-    await tester.drag(find.byType(SingleChildScrollView), const Offset(0, -250));
+    await tester.drag(
+      find.byType(SingleChildScrollView),
+      const Offset(0, -250),
+    );
     await tester.pumpAndSettle();
 
     // tap upload waste button

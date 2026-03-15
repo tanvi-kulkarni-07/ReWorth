@@ -10,10 +10,10 @@ import '../../models/recycler_company.dart';
 /// type).  A segmented control at the top toggles between the two views.
 class RecyclerMarketplaceScreen extends StatefulWidget {
   const RecyclerMarketplaceScreen({
-    Key? key,
+    super.key,
     required this.companies,
     this.initialWasteLabel,
-  }) : super(key: key);
+  });
 
   /// Companies that should be rendered in the UI.
   final List<RecyclerCompany> companies;
@@ -26,8 +26,7 @@ class RecyclerMarketplaceScreen extends StatefulWidget {
       _RecyclerMarketplaceScreenState();
 }
 
-class _RecyclerMarketplaceScreenState
-    extends State<RecyclerMarketplaceScreen> {
+class _RecyclerMarketplaceScreenState extends State<RecyclerMarketplaceScreen> {
   bool _showMap = false;
   GoogleMapController? _mapController;
 
@@ -58,13 +57,17 @@ class _RecyclerMarketplaceScreenState
             children: [
               Text(
                 company.name,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 8),
               Text('Address: ${company.address}'),
               Text('Waste types: ${company.wasteTypes.join(', ')}'),
               Text('Phone: ${company.phone}'),
-              if (company.website.isNotEmpty) Text('Website: ${company.website}'),
+              if (company.website.isNotEmpty)
+                Text('Website: ${company.website}'),
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -112,9 +115,11 @@ class _RecyclerMarketplaceScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.initialWasteLabel != null
-            ? 'Companies for ${widget.initialWasteLabel!}'
-            : 'Recycler Marketplace'),
+        title: Text(
+          widget.initialWasteLabel != null
+              ? 'Companies for ${widget.initialWasteLabel!}'
+              : 'Recycler Marketplace',
+        ),
         backgroundColor: const Color(0xFF00A699),
         actions: [
           IconButton(
@@ -159,7 +164,10 @@ class _RecyclerMarketplaceScreenState
 
     final firstLocation = widget.companies.first.location;
     final initialPosition = CameraPosition(
-      target: LatLng(firstLocation?.latitude ?? 0, firstLocation?.longitude ?? 0),
+      target: LatLng(
+        firstLocation?.latitude ?? 0,
+        firstLocation?.longitude ?? 0,
+      ),
       zoom: 10,
     );
 

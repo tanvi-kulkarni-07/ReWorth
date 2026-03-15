@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../providers/auth_provider.dart';
 
-
 class SplashScreen extends ConsumerStatefulWidget {
-  const SplashScreen({Key? key}) : super(key: key);
+  const SplashScreen({super.key});
 
   @override
   ConsumerState<SplashScreen> createState() => _SplashScreenState();
@@ -23,22 +22,26 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     onboardingPages = [
       OnboardingData(
         title: 'REWORTH',
-        description: 'Revolutionize Your Waste. Turn recyclables into rewards with AI-driven precision.',
+        description:
+            'Revolutionize Your Waste. Turn recyclables into rewards with AI-driven precision.',
         graphicBuilder: _buildReworthGraphic,
       ),
       OnboardingData(
         title: 'TRACK YOUR IMPACT',
-        description: 'Visualise your contribution to a greener planet with real-time analytics.',
+        description:
+            'Visualise your contribution to a greener planet with real-time analytics.',
         graphicBuilder: _buildTrackImpactGraphic,
       ),
       OnboardingData(
         title: 'SMART COLLECTION',
-        description: 'Schedule intelligent collections with our automated logistics network.',
+        description:
+            'Schedule intelligent collections with our automated logistics network.',
         graphicBuilder: _buildSmartCollectionGraphic,
       ),
       OnboardingData(
         title: 'JOIN THE CIRCULAR ECONOMY',
-        description: 'Empower your community. Make waste management smart and profitable.',
+        description:
+            'Empower your community. Make waste management smart and profitable.',
         graphicBuilder: _buildCircularEconomyGraphic,
       ),
     ];
@@ -107,7 +110,7 @@ class OnboardingCard extends StatelessWidget {
   final VoidCallback onLogin;
 
   const OnboardingCard({
-    Key? key,
+    super.key,
     required this.graphic,
     required this.title,
     required this.description,
@@ -116,7 +119,7 @@ class OnboardingCard extends StatelessWidget {
     required this.onNext,
     required this.onLogin,
     this.showLogin = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -292,13 +295,7 @@ Widget _buildTrackImpactGraphic() {
       color: Colors.white.withOpacity(0.2),
       shape: BoxShape.circle,
     ),
-    child: Center(
-      child: Icon(
-        Icons.bar_chart,
-        size: 100,
-        color: Colors.white,
-      ),
-    ),
+    child: Center(child: Icon(Icons.bar_chart, size: 100, color: Colors.white)),
   );
 }
 
@@ -311,11 +308,7 @@ Widget _buildSmartCollectionGraphic() {
       shape: BoxShape.circle,
     ),
     child: Center(
-      child: Icon(
-        Icons.local_shipping,
-        size: 100,
-        color: Colors.white,
-      ),
+      child: Icon(Icons.local_shipping, size: 100, color: Colors.white),
     ),
   );
 }
@@ -328,13 +321,6 @@ Widget _buildCircularEconomyGraphic() {
       color: Colors.white.withOpacity(0.2),
       shape: BoxShape.circle,
     ),
-    child: Center(
-      child: Icon(
-        Icons.loop,
-        size: 100,
-        color: Colors.white,
-      ),
-    ),
+    child: Center(child: Icon(Icons.loop, size: 100, color: Colors.white)),
   );
 }
-

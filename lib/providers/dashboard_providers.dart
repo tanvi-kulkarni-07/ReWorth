@@ -44,8 +44,9 @@ final realTimeAISuggestionsProvider =
         // Find the JSON block if AI includes extra text
         final startIndex = response.indexOf('[');
         final endIndex = response.lastIndexOf(']') + 1;
-        if (startIndex == -1 || endIndex == -1)
+        if (startIndex == -1 || endIndex == -1) {
           throw Exception("Invalid AI response");
+        }
 
         final jsonStr = response.substring(startIndex, endIndex);
         final List<dynamic> data = jsonDecode(jsonStr);
