@@ -11,6 +11,7 @@ class WasteListing {
   final String companyName;
   final String sellerName;
   final String sellerLocation;
+  final String contactPhone;
   String status; // "available", "pending", "sold"
 
   WasteListing({
@@ -21,6 +22,7 @@ class WasteListing {
     required this.companyName,
     required this.sellerName,
     required this.sellerLocation,
+    required this.contactPhone,
     this.status = 'available',
   });
 
@@ -32,6 +34,7 @@ class WasteListing {
         'companyName': companyName,
         'sellerName': sellerName,
         'sellerLocation': sellerLocation,
+        'contactPhone': contactPhone,
         'status': status,
       };
 
@@ -44,6 +47,7 @@ class WasteListing {
       companyName: json['companyName'] as String,
       sellerName: json['sellerName'] as String,
       sellerLocation: json['sellerLocation'] as String,
+      contactPhone: json['contactPhone'] as String? ?? '',
       status: json['status'] as String? ?? 'available',
     );
   }
@@ -69,6 +73,165 @@ class ListingsNotifier extends StateNotifier<List<WasteListing>> {
       } catch (_) {
         state = [];
       }
+    } else {
+      // Add dummy listings for demonstration
+      state = [
+        // Plastic Waste
+        WasteListing(
+          wasteType: 'Plastic',
+          weightKg: 2000,
+          pricePerKg: 20,
+          totalValue: 40000,
+          companyName: 'EcoPlastic Industries',
+          sellerName: 'Rahul Patil',
+          sellerLocation: 'Pune',
+          contactPhone: '9876543210',
+        ),
+        WasteListing(
+          wasteType: 'Plastic',
+          weightKg: 1500,
+          pricePerKg: 20,
+          totalValue: 30000,
+          companyName: 'Green Recycling Ltd',
+          sellerName: 'Sneha Kulkarni',
+          sellerLocation: 'Mumbai',
+          contactPhone: '9823456712',
+        ),
+        WasteListing(
+          wasteType: 'Plastic',
+          weightKg: 3000,
+          pricePerKg: 20,
+          totalValue: 60000,
+          companyName: 'Plastic Waste Solutions',
+          sellerName: 'Amit Sharma',
+          sellerLocation: 'Nashik',
+          contactPhone: '9765432109',
+        ),
+        WasteListing(
+          wasteType: 'Plastic',
+          weightKg: 2200,
+          pricePerKg: 20,
+          totalValue: 44000,
+          companyName: 'EcoFriendly Plastics',
+          sellerName: 'Priya Deshmukh',
+          sellerLocation: 'Pune',
+          contactPhone: '9898765432',
+        ),
+        // Metal Waste
+        WasteListing(
+          wasteType: 'Metal',
+          weightKg: 1800,
+          pricePerKg: 40,
+          totalValue: 72000,
+          companyName: 'Metal Recyclers Inc',
+          sellerName: 'Karan Mehta',
+          sellerLocation: 'Thane',
+          contactPhone: '9812345678',
+        ),
+        WasteListing(
+          wasteType: 'Metal',
+          weightKg: 2500,
+          pricePerKg: 40,
+          totalValue: 100000,
+          companyName: 'Steel & Metal Works',
+          sellerName: 'Neha Jadhav',
+          sellerLocation: 'Aurangabad',
+          contactPhone: '9776543210',
+        ),
+        WasteListing(
+          wasteType: 'Metal',
+          weightKg: 3500,
+          pricePerKg: 40,
+          totalValue: 140000,
+          companyName: 'Metal Processing Co',
+          sellerName: 'Rohit Gupta',
+          sellerLocation: 'Nagpur',
+          contactPhone: '9867543210',
+        ),
+        WasteListing(
+          wasteType: 'Metal',
+          weightKg: 1200,
+          pricePerKg: 40,
+          totalValue: 48000,
+          companyName: 'Scrap Metal Traders',
+          sellerName: 'Pooja Shinde',
+          sellerLocation: 'Kolhapur',
+          contactPhone: '9887654321',
+        ),
+        // Paper Waste
+        WasteListing(
+          wasteType: 'Paper',
+          weightKg: 2700,
+          pricePerKg: 12,
+          totalValue: 32400,
+          companyName: 'Paper Recycling Hub',
+          sellerName: 'Vivek Nair',
+          sellerLocation: 'Pune',
+          contactPhone: '9798765432',
+        ),
+        WasteListing(
+          wasteType: 'Paper',
+          weightKg: 1900,
+          pricePerKg: 12,
+          totalValue: 22800,
+          companyName: 'Green Paper Mills',
+          sellerName: 'Anjali Verma',
+          sellerLocation: 'Mumbai',
+          contactPhone: '9845671234',
+        ),
+        WasteListing(
+          wasteType: 'Paper',
+          weightKg: 2300,
+          pricePerKg: 12,
+          totalValue: 27600,
+          companyName: 'Paper Waste Solutions',
+          sellerName: 'Sagar Pawar',
+          sellerLocation: 'Satara',
+          contactPhone: '9871234567',
+        ),
+        WasteListing(
+          wasteType: 'Paper',
+          weightKg: 1400,
+          pricePerKg: 12,
+          totalValue: 16800,
+          companyName: 'EcoPaper Recyclers',
+          sellerName: 'Riya Singh',
+          sellerLocation: 'Pune',
+          contactPhone: '9834567890',
+        ),
+        // E-Waste
+        WasteListing(
+          wasteType: 'E-Waste',
+          weightKg: 3200,
+          pricePerKg: 50,
+          totalValue: 160000,
+          companyName: 'E-Waste Specialists',
+          sellerName: 'Mohit Agarwal',
+          sellerLocation: 'Delhi',
+          contactPhone: '9811122233',
+        ),
+        WasteListing(
+          wasteType: 'E-Waste',
+          weightKg: 1600,
+          pricePerKg: 50,
+          totalValue: 80000,
+          companyName: 'Electronic Recycling Co',
+          sellerName: 'Kavita Joshi',
+          sellerLocation: 'Nashik',
+          contactPhone: '9891234567',
+        ),
+        WasteListing(
+          wasteType: 'E-Waste',
+          weightKg: 2100,
+          pricePerKg: 50,
+          totalValue: 105000,
+          companyName: 'Tech Waste Solutions',
+          sellerName: 'Aditya Kulkarni',
+          sellerLocation: 'Pune',
+          contactPhone: '9823344556',
+        ),
+      ];
+      await _save();
     }
   }
 

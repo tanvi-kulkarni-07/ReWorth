@@ -583,6 +583,8 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
     // keep these outside of the builder so they persist across rebuilds
     double localWeight = 0;
     final controller = TextEditingController();
+    String localContact = '';
+    final contactController = TextEditingController();
 
     return StatefulBuilder(
       builder: (context, setLocalState) {
@@ -619,6 +621,20 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
+                TextField(
+                  controller: contactController,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Contact Phone (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  onChanged: (val) {
+                    setLocalState(() {
+                      localContact = val;
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
                 ElevatedButton(
                   onPressed: () {
                     if (localWeight <= 0 || priceKg <= 0) return;
@@ -636,6 +652,7 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
                         companyName: c.name,
                         sellerName: seller,
                         sellerLocation: sellerLoc,
+                        contactPhone: localContact,
                       ),
                     );
                     ref.read(pickupRequestsProvider.notifier).addRequest(
