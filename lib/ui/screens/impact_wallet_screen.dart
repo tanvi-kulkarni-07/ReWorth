@@ -59,13 +59,13 @@ class ImpactWalletScreen extends ConsumerWidget {
       final acceptedOrders = orders.where((o) => o.status == 'accepted').toList();
       final totalWasteKg = acceptedOrders.fold<double>(0, (prev, o) => prev + o.weight);
 
-      // Carbon credits = quantity purchased / 10 (10kg = 1 credit)
-      final carbonCredits = totalWasteKg / 10;
+      // Carbon credits = quantity purchased (1:1 ratio with weight in kg)
+      final carbonCredits = totalWasteKg;
 
       // CO₂ impact decreases as more waste is recycled (negative value or reduction)
       final totalCo2Impact = -carbonCredits; // Negative to show reduction
       
-      return _buildBuyerImpactWallet(context, carbonCredits, totalCo2Impact, totalWasteKg, userName, acceptedOrders);
+      return _buildBuyerImpactWallet(context, carbonCredits, totalCo2Impact, totalWasteKg, userName);
     }
   }
 
@@ -672,12 +672,7 @@ class ImpactWalletScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBuyerImpactWallet(BuildContext context, double carbonCredits, double totalCo2Impact, double totalWasteKg, String userName, List<Order> acceptedOrders) {
-    // Calculate waste type breakdown
-    final Map<String, double> wasteTypeBreakdown = {};
-    for (final order in acceptedOrders) {
-      wasteTypeBreakdown[order.wasteType] = (wasteTypeBreakdown[order.wasteType] ?? 0) + order.weight;
-    }
+  Widget _buildBuyerImpactWallet(BuildContext context, double carbonCredits, double totalCo2Impact, double totalWasteKg, String userName) {
 
     return Scaffold(
       appBar: AppBar(
@@ -899,68 +894,7 @@ class ImpactWalletScreen extends ConsumerWidget {
                 ),
               ),
 
-              const SizedBox(height: 20),
-
-              // Waste Type Breakdown
-              if (wasteTypeBreakdown.isNotEmpty) ...[
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.grey.withOpacity(0.1),
-                          blurRadius: 10,
-                          offset: const Offset(0, 5),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Waste Type Breakdown',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ...wasteTypeBreakdown.entries.map((entry) {
-                          final credits = entry.value / 10;
-                          return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  entry.key,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                Text(
-                                  '${entry.value.toStringAsFixed(0)} kg (${credits.toStringAsFixed(1)} credits)',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[700],
-                                  ),
-                                ),
-                              ],
-                            ),
-                          );
-                        }),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
+              const SizedBox(height: 32),
 
               // Monthly Impact Graph Section
               Padding(
