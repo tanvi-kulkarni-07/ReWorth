@@ -1185,69 +1185,69 @@ class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 10),
-          ...acceptedOrders.map(
-            (order) {
-              final location = order.sellerLocation;
-              return Card(
-                margin: const EdgeInsets.only(bottom: 12),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        order.wasteType,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
+          ...acceptedOrders.map((order) {
+            final location = order.sellerLocation;
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      order.wasteType,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text('Seller: ${order.sellerName}'),
+                    Text(
+                      'Quantity: ${(order.weight / 1000).toStringAsFixed(1)} tons',
+                    ),
+                    Text('Location: $location'),
+                    Text('Contact: ${order.contactPhone}'),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () async {
+                              final query = Uri.encodeComponent(location);
+                              final url =
+                                  'https://www.google.com/maps/search/?api=1&query=$query';
+                              if (await canLaunchUrl(Uri.parse(url))) {
+                                await launchUrl(Uri.parse(url));
+                              }
+                            },
+                            icon: const Icon(Icons.map),
+                            label: const Text('Open in Maps'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF00A699),
+                            ),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text('Seller: ${order.sellerName}'),
-                      Text('Quantity: ${(order.weight / 1000).toStringAsFixed(1)} tons'),
-                      Text('Location: $location'),
-                      Text('Contact: ${order.contactPhone}'),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: ElevatedButton.icon(
-                              onPressed: () async {
-                                final query = Uri.encodeComponent(location);
-                                final url =
-                                    'https://www.google.com/maps/search/?api=1&query=$query';
-                                if (await canLaunchUrl(Uri.parse(url))) {
-                                  await launchUrl(Uri.parse(url));
-                                }
-                              },
-                              icon: const Icon(Icons.map),
-                              label: const Text('Open in Maps'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF00A699),
-                              ),
-                            ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () async {
+                              final tel = 'tel:${order.contactPhone}';
+                              if (await canLaunchUrl(Uri.parse(tel))) {
+                                await launchUrl(Uri.parse(tel));
+                              }
+                            },
+                            icon: const Icon(Icons.phone),
+                            label: const Text('Call'),
                           ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: OutlinedButton.icon(
-                              onPressed: () async {
-                                final tel = 'tel:${order.contactPhone}';
-                                if (await canLaunchUrl(Uri.parse(tel))) {
-                                  await launchUrl(Uri.parse(tel));
-                                }
-                              },
-                              icon: const Icon(Icons.phone),
-                              label: const Text('Call'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          }),
           const SizedBox(height: 18),
         ],
       );
@@ -1256,10 +1256,7 @@ class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
     if (_searchedLocation != null) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildAcceptedOrdersPanel(),
-          _buildSearchedLocationPanel(),
-        ],
+        children: [_buildAcceptedOrdersPanel(), _buildSearchedLocationPanel()],
       );
     }
 
@@ -1469,7 +1466,7 @@ class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
             point: _acceptedSellerLocations[order.sellerLocation]!,
             width: 48,
             height: 48,
-            builder: (context) => const Icon(
+            child: const Icon(
               Icons.store_mall_directory,
               color: Colors.green,
               size: 32,
