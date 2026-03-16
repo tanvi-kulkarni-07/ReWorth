@@ -8,11 +8,47 @@ import '../../providers/auth_provider.dart';
 import '../../providers/listing_providers.dart';
 import 'dashboard_screen.dart';
 
-class PickupRequestsScreen extends ConsumerWidget {
+class PickupRequestsScreen extends ConsumerStatefulWidget {
   const PickupRequestsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PickupRequestsScreen> createState() =>
+      _PickupRequestsScreenState();
+}
+
+class _PickupRequestsScreenState extends ConsumerState<PickupRequestsScreen> {
+  final Set<String> _autoAdvancingRequestIds = <String>{};
+
+  void _scheduleAutoAdvance({
+    required String requestId,
+    required List<String> stages,
+  }) {
+    if (_autoAdvancingRequestIds.contains(requestId)) return;
+    _autoAdvancingRequestIds.add(requestId);
+
+    Future.delayed(const Duration(seconds: 4), () async {
+      try {
+        final docRef = FirebaseFirestore.instance
+            .collection('pickup_requests')
+            .doc(requestId);
+        final snapshot = await docRef.get();
+        if (!snapshot.exists) return;
+
+        final data = snapshot.data();
+        final currentStatus = (data?['status'] as String? ?? stages.first)
+            .toLowerCase();
+        final idx = stages.indexOf(currentStatus);
+        if (idx >= 0 && idx < stages.length - 1) {
+          await docRef.update({'status': stages[idx + 1]});
+        }
+      } finally {
+        _autoAdvancingRequestIds.remove(requestId);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final role = ref.watch(userRoleProvider);
     if (role != 'seller') {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -71,7 +107,10 @@ class PickupRequestsScreen extends ConsumerWidget {
                   children: [
                     const Text(
                       'Unable to load requests.',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 12),
@@ -116,12 +155,19 @@ class PickupRequestsScreen extends ConsumerWidget {
               final currentStageIndex = statusStages.indexOf(
                 request.status.toLowerCase(),
               );
-              final currentStage = currentStageIndex >= 0
-                  ? statusStages[currentStageIndex]
-                  : statusStages.first;
               final stages = statusStages;
+              final safeStageIndex = currentStageIndex < 0
+                  ? 0
+                  : currentStageIndex;
 
-              final companyPoint = LatLng(request.companyLat, request.companyLng);
+              if (safeStageIndex < stages.length - 1) {
+                _scheduleAutoAdvance(requestId: doc.id, stages: stages);
+              }
+
+              final companyPoint = LatLng(
+                request.companyLat,
+                request.companyLng,
+              );
               final sellerPoint = LatLng(request.sellerLat, request.sellerLng);
 
               return Column(
@@ -152,14 +198,19 @@ class PickupRequestsScreen extends ConsumerWidget {
                             child: FlutterMap(
                               options: MapOptions(
                                 initialCenter: LatLng(
-                                  (companyPoint.latitude + sellerPoint.latitude) / 2,
-                                  (companyPoint.longitude + sellerPoint.longitude) / 2,
+                                  (companyPoint.latitude +
+                                          sellerPoint.latitude) /
+                                      2,
+                                  (companyPoint.longitude +
+                                          sellerPoint.longitude) /
+                                      2,
                                 ),
                                 initialZoom: 8.5,
                               ),
                               children: [
                                 TileLayer(
-                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  urlTemplate:
+                                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                                   userAgentPackageName: 'com.example.reworth',
                                 ),
                                 PolylineLayer(
@@ -201,7 +252,10 @@ class PickupRequestsScreen extends ConsumerWidget {
                           const SizedBox(height: 8),
                           Text(
                             'From: ${request.companyName}  →  To: ${request.sellerName}',
-                            style: const TextStyle(fontSize: 12, color: Colors.grey),
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey,
+                            ),
                           ),
                         ],
                       ),
@@ -213,66 +267,193 @@ class PickupRequestsScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 8),
-                  Column(
-                    children: stages.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final stage = entry.value;
-                      final isCompleted = idx < currentStageIndex;
-                      final isCurrent = idx == currentStageIndex;
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final totalWidth = constraints.maxWidth;
+                      final stepWidth = totalWidth / stages.length;
+                      final trackLeft = stepWidth / 2;
+                      final trackWidth = totalWidth - stepWidth;
+                      final progress = stages.length <= 1
+                          ? 1.0
+                          : safeStageIndex / (stages.length - 1);
+
+                      return SizedBox(
+                        width: totalWidth,
+                        height: 130,
+                        child: Stack(
                           children: [
-                            Icon(
-                              isCompleted
-                                  ? Icons.check_circle
-                                  : isCurrent
-                                  ? Icons.radio_button_checked
-                                  : Icons.radio_button_unchecked,
-                              color: isCompleted
-                                  ? Colors.green
-                                  : isCurrent
-                                  ? Colors.blue
-                                  : Colors.grey,
+                            Positioned(
+                              left: trackLeft,
+                              right: trackLeft,
+                              top: 24,
+                              child: Container(
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  color: Colors.grey.shade200,
+                                  borderRadius: BorderRadius.circular(3),
+                                ),
+                              ),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                stageLabels[stage] ?? stage,
-                                style: TextStyle(
-                                  fontWeight: isCurrent
-                                      ? FontWeight.bold
-                                      : FontWeight.normal,
-                                  color: isCompleted
-                                      ? Colors.green
-                                      : isCurrent
-                                      ? Colors.blue
-                                      : Colors.black,
+                            Positioned(
+                              left: trackLeft,
+                              top: 24,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 1000),
+                                curve: Curves.easeInOutCubic,
+                                width: trackWidth * progress,
+                                height: 4,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: [
+                                      const Color(0xFF00A699),
+                                      const Color(0xFF17B57C),
+                                      const Color(0xFF34D399),
+                                    ],
+                                    stops: const [0.0, 0.5, 1.0],
+                                  ),
+                                  borderRadius: BorderRadius.circular(3),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: const Color(
+                                        0xFF00A699,
+                                      ).withValues(alpha: 0.5),
+                                      blurRadius: 10,
+                                      offset: const Offset(0, 3),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            Positioned.fill(
+                              child: Padding(
+                                padding: const EdgeInsets.only(top: 40),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: stages.asMap().entries.map((entry) {
+                                    final idx = entry.key;
+                                    final stage = entry.value;
+                                    final isCompleted = idx < safeStageIndex;
+                                    final isCurrent = idx == safeStageIndex;
+
+                                    return Expanded(
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          AnimatedContainer(
+                                            duration: const Duration(
+                                              milliseconds: 400,
+                                            ),
+                                            curve: Curves.elasticOut,
+                                            width: isCurrent ? 36 : 32,
+                                            height: isCurrent ? 36 : 32,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: isCompleted
+                                                  ? Colors.green.withValues(
+                                                      alpha: 0.15,
+                                                    )
+                                                  : isCurrent
+                                                  ? const Color(
+                                                      0xFF00A699,
+                                                    ).withValues(alpha: 0.15)
+                                                  : Colors.grey.withValues(
+                                                      alpha: 0.1,
+                                                    ),
+                                              border: Border.all(
+                                                color: isCompleted
+                                                    ? Colors.green
+                                                    : isCurrent
+                                                    ? const Color(0xFF00A699)
+                                                    : Colors.grey.shade400,
+                                                width: isCurrent ? 2.5 : 2,
+                                              ),
+                                              boxShadow:
+                                                  isCompleted || isCurrent
+                                                  ? [
+                                                      BoxShadow(
+                                                        color:
+                                                            (isCompleted
+                                                                    ? Colors
+                                                                          .green
+                                                                    : const Color(
+                                                                        0xFF00A699,
+                                                                      ))
+                                                                .withValues(
+                                                                  alpha: 0.4,
+                                                                ),
+                                                        blurRadius: 8,
+                                                        offset: const Offset(
+                                                          0,
+                                                          3,
+                                                        ),
+                                                      ),
+                                                    ]
+                                                  : null,
+                                            ),
+                                            child: AnimatedSwitcher(
+                                              duration: const Duration(
+                                                milliseconds: 300,
+                                              ),
+                                              child: Icon(
+                                                isCompleted
+                                                    ? Icons.check
+                                                    : isCurrent
+                                                    ? Icons.radio_button_checked
+                                                    : Icons
+                                                          .radio_button_unchecked,
+                                                key: ValueKey<String>(
+                                                  '${stage}_${isCompleted}_${isCurrent}',
+                                                ),
+                                                size: isCurrent ? 20 : 18,
+                                                color: isCompleted
+                                                    ? Colors.green
+                                                    : isCurrent
+                                                    ? const Color(0xFF00A699)
+                                                    : Colors.grey,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 6,
+                                            ),
+                                            child: SizedBox(
+                                              height: 36,
+                                              child: Text(
+                                                stageLabels[stage] ?? stage,
+                                                textAlign: TextAlign.center,
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: isCurrent
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500,
+                                                  color: isCompleted
+                                                      ? Colors.green.shade700
+                                                      : isCurrent
+                                                      ? const Color(0xFF00A699)
+                                                      : Colors.black54,
+                                                  height: 1.2,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  }).toList(),
                                 ),
                               ),
                             ),
                           ],
                         ),
                       );
-                    }).toList(),
+                    },
                   ),
-                  if (currentStageIndex < stages.length - 1)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          final nextStatus = stages[currentStageIndex + 1];
-                          FirebaseFirestore.instance
-                              .collection('pickup_requests')
-                              .doc(doc.id)
-                              .update({'status': nextStatus});
-                        },
-                        child: Text(
-                          'Advance to "${stageLabels[stages[currentStageIndex + 1]]}"',
-                        ),
-                      ),
-                    ),
                   const SizedBox(height: 16),
                 ],
               );
