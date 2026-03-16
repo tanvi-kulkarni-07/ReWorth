@@ -77,6 +77,24 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
+  Widget _buildChatButton(BuildContext context) {
+    return Semantics(
+      label: 'Chat with support',
+      button: true,
+      child: IconButton(
+        onPressed: () =>
+            Navigator.of(context, rootNavigator: true).pushNamed('/chat'),
+        tooltip: 'Chat',
+        icon: Image.asset(
+          'assets/robot.png',
+          width: 50,
+          height: 50,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+
   Widget _buildDashboardContent(
     AsyncValue<List<Map<String, dynamic>>> suggestionsAsync,
   ) {
@@ -91,20 +109,33 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  'Welcome back,',
-                  style: TextStyle(
-                    fontSize: 16,
-                    color: Colors.white.withValues(alpha: 0.8),
-                  ),
-                ),
-                Text(
-                  ref.watch(userNameProvider) ?? 'Eco Warrior',
-                  style: const TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Welcome back,',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withValues(alpha: 0.8),
+                            ),
+                          ),
+                          Text(
+                            ref.watch(userNameProvider) ?? 'Eco Warrior',
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    _buildChatButton(context),
+                  ],
                 ),
                 const SizedBox(height: 24),
                 _buildHeaderCarousel(),
