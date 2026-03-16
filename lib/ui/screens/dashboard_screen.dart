@@ -26,7 +26,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   int _currentHeaderImage = 0;
 
   static const List<String> _headerImages = [
-    'assets/img1.jpg',
+    'assets/illustrations/ai_camera.jpeg',
     'assets/img2.jpg',
     'assets/img3.jpg',
   ];
@@ -391,7 +391,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                   return Stack(
                     fit: StackFit.expand,
                     children: [
-                      Image.asset(_headerImages[index], fit: BoxFit.cover),
+                      _buildHeaderImage(_headerImages[index]),
                       DecoratedBox(
                         decoration: BoxDecoration(
                           gradient: LinearGradient(
@@ -458,6 +458,31 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildHeaderImage(String assetPath) {
+    return Image.asset(
+      assetPath,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return DecoratedBox(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [Color(0xFF0A8D62), Color(0xFF146EA0)],
+            ),
+          ),
+          child: const Center(
+            child: Icon(
+              Icons.image_not_supported_outlined,
+              color: Colors.white70,
+              size: 42,
+            ),
+          ),
+        );
+      },
     );
   }
 
