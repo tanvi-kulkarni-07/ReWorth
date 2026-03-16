@@ -171,6 +171,7 @@ class _WasteSellersScreenState extends ConsumerState<WasteSellersScreen> {
                               onPressed: listing.status == 'available'
                                   ? () {
                                       final buyerName = ref.watch(userNameProvider) ?? 'Buyer';
+                                      final buyerId = ref.read(userIdProvider) ?? 'anonymous';
                                       ref.read(listingsProvider.notifier).updateListingStatus(
                                             listing.sellerName,
                                             listing.wasteType,
@@ -186,6 +187,7 @@ class _WasteSellersScreenState extends ConsumerState<WasteSellersScreen> {
                                               sellerName: listing.sellerName,
                                               companyName: listing.companyName,
                                               sellerLocation: listing.sellerLocation,
+                                              buyerId: buyerId,
                                               contactPhone: listing.contactPhone,
                                             ),
                                           );
