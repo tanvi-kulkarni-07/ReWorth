@@ -169,43 +169,69 @@ class _WasteSellersScreenState extends ConsumerState<WasteSellersScreen> {
                             width: double.infinity,
                             child: ElevatedButton.icon(
                               onPressed: listing.status == 'available'
-                                  ? () {
-                                      final buyerName = ref.watch(userNameProvider) ?? 'Buyer';
-                                      final buyerId = ref.read(userIdProvider) ?? 'anonymous';
-                                      ref.read(listingsProvider.notifier).updateListingStatus(
-                                            listing.sellerName,
-                                            listing.wasteType,
-                                            'request_sent',
-                                            buyerName: buyerName,
-                                            sentAt: DateTime.now(),
-                                          );
+                                  ? () async {
+                                      final confirmed = await showDialog<bool>(
+                                        context: context,
+                                        builder: (context) => AlertDialog(
+                                          title: const Text('Confirm Selection'),
+                                          content: Text(
+                                            'Are you sure you want to select ${listing.sellerName} for ${listing.weightKg}kg of ${listing.wasteType}?\n\n'
+                                            'This will add ${(listing.weightKg / 10).toStringAsFixed(1)} carbon credits to your wallet.',
+                                          ),
+                                          actions: [
+                                            TextButton(
+                                              onPressed: () => Navigator.of(context).pop(false),
+                                              child: const Text('Cancel'),
+                                            ),
+                                            ElevatedButton(
+                                              onPressed: () => Navigator.of(context).pop(true),
+                                              child: const Text('Confirm'),
+                                            ),
+                                          ],
+                                        ),
+                                      );
 
-                                      ref.read(ordersProvider.notifier).addOrder(
-                                            Order(
-                                              wasteType: listing.wasteType,
-                                              weight: listing.weightKg,
-                                              sellerName: listing.sellerName,
-                                              companyName: listing.companyName,
-                                              sellerLocation: listing.sellerLocation,
-                                              buyerId: buyerId,
-                                              contactPhone: listing.contactPhone,
+                                      if (confirmed == true) {
+                                        final buyerName = ref.watch(userNameProvider) ?? 'Buyer';
+                                        final buyerId = ref.read(userIdProvider) ?? 'anonymous';
+                                        ref.read(listingsProvider.notifier).updateListingStatus(
+                                              listing.sellerName,
+                                              listing.wasteType,
+                                              'request_accepted',
+                                              buyerName: buyerName,
+                                              acceptedAt: DateTime.now(),
+                                            );
+
+                                        ref.read(ordersProvider.notifier).addOrder(
+                                              Order(
+                                                wasteType: listing.wasteType,
+                                                weight: listing.weightKg,
+                                                sellerName: listing.sellerName,
+                                                companyName: listing.companyName,
+                                                sellerLocation: listing.sellerLocation,
+                                                buyerId: buyerId,
+                                                status: 'accepted',
+                                                contactPhone: listing.contactPhone,
+                                              ),
+                                            );
+
+                                        if (mounted) {
+                                          ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                                            SnackBar(
+                                              content: Text(
+                                                'Selection confirmed! ${(listing.weightKg / 10).toStringAsFixed(1)} carbon credits added to your wallet.',
+                                              ),
+                                              backgroundColor: Colors.green,
                                             ),
                                           );
-
-                                      if (mounted) {
-                                        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                                          const SnackBar(
-                                            content: Text('Request sent to buyer! Waiting for confirmation.'),
-                                            backgroundColor: Colors.green,
-                                          ),
-                                        );
+                                        }
                                       }
                                     }
                                   : null,
-                              icon: const Icon(Icons.send),
+                              icon: const Icon(Icons.check_circle),
                               label: Text(listing.status == 'available'
-                                  ? 'Send Request'
-                                  : 'Request Sent'),
+                                  ? 'Confirm Selection'
+                                  : 'Selection Confirmed'),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: listing.status == 'available'
                                     ? const Color(0xFF00A699)

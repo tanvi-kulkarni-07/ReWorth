@@ -73,9 +73,6 @@ class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
     // Resolve addresses of accepted sellers when orders change.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _refreshAcceptedSellerLocations();
-      ref.listen<List<Order>>(ordersProvider, (_, __) {
-        _refreshAcceptedSellerLocations();
-      });
     });
   }
 
@@ -1403,6 +1400,11 @@ class _LogisticsScreenState extends ConsumerState<LogisticsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen for order updates and refresh accepted seller locations
+    ref.listen<List<Order>>(ordersProvider, (_, __) {
+      _refreshAcceptedSellerLocations();
+    });
+
     final orders = ref.watch(ordersProvider);
     final acceptedOrders = orders
         .where((o) => o.status.toLowerCase() == 'accepted')
