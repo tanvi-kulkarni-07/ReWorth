@@ -1,6 +1,8 @@
 ﻿import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/listing_providers.dart';
@@ -119,6 +121,9 @@ class PickupRequestsScreen extends ConsumerWidget {
                   : statusStages.first;
               final stages = statusStages;
 
+              final companyPoint = LatLng(request.companyLat, request.companyLng);
+              final sellerPoint = LatLng(request.sellerLat, request.sellerLng);
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -140,6 +145,63 @@ class PickupRequestsScreen extends ConsumerWidget {
                           Text('Company: ${request.companyName}'),
                           Text(
                             'Status: ${stageLabels[request.status.toLowerCase()] ?? request.status}',
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 180,
+                            child: FlutterMap(
+                              options: MapOptions(
+                                initialCenter: LatLng(
+                                  (companyPoint.latitude + sellerPoint.latitude) / 2,
+                                  (companyPoint.longitude + sellerPoint.longitude) / 2,
+                                ),
+                                initialZoom: 8.5,
+                              ),
+                              children: [
+                                TileLayer(
+                                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                  userAgentPackageName: 'com.example.reworth',
+                                ),
+                                PolylineLayer(
+                                  polylines: [
+                                    Polyline(
+                                      points: [companyPoint, sellerPoint],
+                                      strokeWidth: 4,
+                                      color: Colors.blueAccent,
+                                    ),
+                                  ],
+                                ),
+                                MarkerLayer(
+                                  markers: [
+                                    Marker(
+                                      point: companyPoint,
+                                      width: 36,
+                                      height: 36,
+                                      child: const Icon(
+                                        Icons.location_city,
+                                        color: Colors.blue,
+                                        size: 28,
+                                      ),
+                                    ),
+                                    Marker(
+                                      point: sellerPoint,
+                                      width: 36,
+                                      height: 36,
+                                      child: const Icon(
+                                        Icons.home,
+                                        color: Colors.green,
+                                        size: 28,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'From: ${request.companyName}  →  To: ${request.sellerName}',
+                            style: const TextStyle(fontSize: 12, color: Colors.grey),
                           ),
                         ],
                       ),

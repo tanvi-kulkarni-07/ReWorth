@@ -164,6 +164,53 @@ class _WasteSellersScreenState extends ConsumerState<WasteSellersScreen> {
                               ),
                             ],
                           ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: listing.status == 'available'
+                                  ? () {
+                                      final buyerName = ref.watch(userNameProvider) ?? 'Buyer';
+                                      ref.read(listingsProvider.notifier).updateListingStatus(
+                                            listing.sellerName,
+                                            listing.wasteType,
+                                            'request_sent',
+                                            buyerName: buyerName,
+                                            sentAt: DateTime.now(),
+                                          );
+
+                                      ref.read(ordersProvider.notifier).addOrder(
+                                            Order(
+                                              wasteType: listing.wasteType,
+                                              weight: listing.weightKg,
+                                              sellerName: listing.sellerName,
+                                              companyName: listing.companyName,
+                                              sellerLocation: listing.sellerLocation,
+                                              contactPhone: listing.contactPhone,
+                                            ),
+                                          );
+
+                                      if (mounted) {
+                                        ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Request sent to buyer! Waiting for confirmation.'),
+                                            backgroundColor: Colors.green,
+                                          ),
+                                        );
+                                      }
+                                    }
+                                  : null,
+                              icon: const Icon(Icons.send),
+                              label: Text(listing.status == 'available'
+                                  ? 'Send Request'
+                                  : 'Request Sent'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: listing.status == 'available'
+                                    ? const Color(0xFF00A699)
+                                    : Colors.grey,
+                              ),
+                            ),
+                          ),
                         ],
                       ],
                     ),

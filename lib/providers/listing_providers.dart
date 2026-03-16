@@ -2,6 +2,198 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// Represents a waste management company that can accept requests from sellers.
+class Company {
+  final String name;
+  final String category;
+  final List<String> wasteTypes;
+  final String phone;
+  final String website;
+  final String address;
+  final String city;
+  final Map<String, double> location;
+  final bool isActive;
+  final bool isVerified;
+  final String ownerUid;
+  final String updatedAt;
+
+  Company({
+    required this.name,
+    required this.category,
+    required this.wasteTypes,
+    required this.phone,
+    required this.website,
+    required this.address,
+    required this.city,
+    required this.location,
+    required this.isActive,
+    required this.isVerified,
+    required this.ownerUid,
+    required this.updatedAt,
+  });
+
+  factory Company.fromJson(Map<String, dynamic> json) {
+    return Company(
+      name: json['name'],
+      category: json['category'],
+      wasteTypes: List<String>.from(json['wasteTypes']),
+      phone: json['phone'],
+      website: json['website'],
+      address: json['address'],
+      city: json['city'],
+      location: Map<String, double>.from(json['location']),
+      isActive: json['isActive'],
+      isVerified: json['isVerified'],
+      ownerUid: json['ownerUid'],
+      updatedAt: json['updatedAt'],
+    );
+  }
+}
+
+/// List of predefined waste management companies.
+final List<Company> companies = [
+  Company.fromJson({
+    "name": "Recykal",
+    "category": "Digital Waste Management",
+    "wasteTypes": ["plastic", "paper", "metal", "electronics"],
+    "phone": "+91 40 4855 3333",
+    "website": "https://recykal.com",
+    "address": "HITEC City",
+    "city": "Hyderabad",
+    "location": {"latitude": 17.4435, "longitude": 78.3772},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Attero Recycling",
+    "category": "E-Waste Recycling",
+    "wasteTypes": ["electronics", "battery", "metal"],
+    "phone": "+91 120 466 7700",
+    "website": "https://attero.in",
+    "address": "Sector 80",
+    "city": "Noida",
+    "location": {"latitude": 28.5355, "longitude": 77.3910},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Eco Recycling Ltd",
+    "category": "E-Waste Recycling",
+    "wasteTypes": ["electronics", "plastic", "metal"],
+    "phone": "+91 22 4005 2951",
+    "website": "https://ecoreco.com",
+    "address": "Andheri East",
+    "city": "Mumbai",
+    "location": {"latitude": 19.1136, "longitude": 72.8697},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Saahas Zero Waste",
+    "category": "Waste Management",
+    "wasteTypes": ["plastic", "paper", "organic"],
+    "phone": "+91 80 4168 9899",
+    "website": "https://saahas.org",
+    "address": "Indiranagar",
+    "city": "Bengaluru",
+    "location": {"latitude": 12.9719, "longitude": 77.6412},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Ramky Enviro Engineers",
+    "category": "Environmental Services",
+    "wasteTypes": ["industrial", "hazardous", "plastic"],
+    "phone": "+91 40 2301 6000",
+    "website": "https://ramkyenviroengineers.com",
+    "address": "Gachibowli",
+    "city": "Hyderabad",
+    "location": {"latitude": 17.4401, "longitude": 78.3489},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Hulladek Recycling",
+    "category": "E-Waste Recycling",
+    "wasteTypes": ["electronics", "battery", "metal"],
+    "phone": "+91 33 4005 6000",
+    "website": "https://hulladek.com",
+    "address": "Salt Lake Sector V",
+    "city": "Kolkata",
+    "location": {"latitude": 22.5726, "longitude": 88.3639},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Clean Harbors India",
+    "category": "Waste Management",
+    "wasteTypes": ["industrial", "hazardous"],
+    "phone": "+91 80 6734 3000",
+    "website": "https://cleanharbors.com",
+    "address": "Whitefield",
+    "city": "Bengaluru",
+    "location": {"latitude": 12.9698, "longitude": 77.7500},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Gem Enviro Management",
+    "category": "E-Waste Recycling",
+    "wasteTypes": ["electronics", "metal", "plastic"],
+    "phone": "+91 44 2793 3333",
+    "website": "https://gemrecycling.com",
+    "address": "Ambattur Industrial Estate",
+    "city": "Chennai",
+    "location": {"latitude": 13.0983, "longitude": 80.1622},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "TrashCon",
+    "category": "Waste Technology",
+    "wasteTypes": ["plastic", "mixed", "municipal"],
+    "phone": "+91 80 4680 9100",
+    "website": "https://trashcon.in",
+    "address": "HSR Layout",
+    "city": "Bengaluru",
+    "location": {"latitude": 12.9121, "longitude": 77.6446},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+  Company.fromJson({
+    "name": "Paperman Recycling",
+    "category": "Paper Recycling",
+    "wasteTypes": ["paper", "cardboard"],
+    "phone": "+91 44 4214 3030",
+    "website": "https://paperman.in",
+    "address": "Anna Nagar",
+    "city": "Chennai",
+    "location": {"latitude": 13.0827, "longitude": 80.2707},
+    "isActive": true,
+    "isVerified": true,
+    "ownerUid": "firebase-auth-user-id",
+    "updatedAt": "server timestamp"
+  }),
+];
+
 /// Represents a waste listing created by a seller.
 class WasteListing {
   final String wasteType;
@@ -12,7 +204,11 @@ class WasteListing {
   final String sellerName;
   final String sellerLocation;
   final String contactPhone;
-  String status; // "available", "pending", "sold"
+  String status; // "available", "request_sent", "request_accepted", ...
+  String? buyerName;
+  String? pickupRequestId;
+  DateTime? requestSentAt;
+  DateTime? requestAcceptedAt;
 
   WasteListing({
     required this.wasteType,
@@ -24,6 +220,10 @@ class WasteListing {
     required this.sellerLocation,
     required this.contactPhone,
     this.status = 'available',
+    this.buyerName,
+    this.pickupRequestId,
+    this.requestSentAt,
+    this.requestAcceptedAt,
   });
 
   Map<String, dynamic> toJson() => {
@@ -36,6 +236,10 @@ class WasteListing {
         'sellerLocation': sellerLocation,
         'contactPhone': contactPhone,
         'status': status,
+        'buyerName': buyerName,
+        'pickupRequestId': pickupRequestId,
+        'requestSentAt': requestSentAt?.toIso8601String(),
+        'requestAcceptedAt': requestAcceptedAt?.toIso8601String(),
       };
 
   factory WasteListing.fromJson(Map<String, dynamic> json) {
@@ -48,7 +252,14 @@ class WasteListing {
       sellerName: json['sellerName'] as String,
       sellerLocation: json['sellerLocation'] as String,
       contactPhone: json['contactPhone'] as String? ?? '',
-      status: json['status'] as String? ?? 'available',
+      status: json['status'] as String? ?? 'available',      buyerName: json['buyerName'] as String?,
+      pickupRequestId: json['pickupRequestId'] as String?,
+      requestSentAt: json['requestSentAt'] != null
+          ? DateTime.parse(json['requestSentAt'] as String)
+          : null,
+      requestAcceptedAt: json['requestAcceptedAt'] != null
+          ? DateTime.parse(json['requestAcceptedAt'] as String)
+          : null,
     );
   }
 }
@@ -230,6 +441,59 @@ class ListingsNotifier extends StateNotifier<List<WasteListing>> {
           sellerLocation: 'Pune',
           contactPhone: '9823344556',
         ),
+        // Dummy listings with company acknowledgments
+        WasteListing(
+          wasteType: 'Plastic',
+          weightKg: 1000,
+          pricePerKg: 20,
+          totalValue: 20000,
+          companyName: 'EcoPlastic Industries',
+          sellerName: 'Rahul Patil',
+          sellerLocation: 'Pune',
+          contactPhone: '9876543210',
+          status: 'request_accepted',
+          buyerName: 'Recykal',
+          requestAcceptedAt: DateTime.now().subtract(const Duration(hours: 2)),
+        ),
+        WasteListing(
+          wasteType: 'Metal',
+          weightKg: 800,
+          pricePerKg: 40,
+          totalValue: 32000,
+          companyName: 'Metal Recyclers Inc',
+          sellerName: 'Karan Mehta',
+          sellerLocation: 'Thane',
+          contactPhone: '9812345678',
+          status: 'request_accepted',
+          buyerName: 'Attero Recycling',
+          requestAcceptedAt: DateTime.now().subtract(const Duration(hours: 5)),
+        ),
+        WasteListing(
+          wasteType: 'Paper',
+          weightKg: 1200,
+          pricePerKg: 12,
+          totalValue: 14400,
+          companyName: 'Paper Recycling Hub',
+          sellerName: 'Vivek Nair',
+          sellerLocation: 'Pune',
+          contactPhone: '9798765432',
+          status: 'request_accepted',
+          buyerName: 'Saahas Zero Waste',
+          requestAcceptedAt: DateTime.now().subtract(const Duration(hours: 1)),
+        ),
+        WasteListing(
+          wasteType: 'E-Waste',
+          weightKg: 500,
+          pricePerKg: 50,
+          totalValue: 25000,
+          companyName: 'E-Waste Specialists',
+          sellerName: 'Mohit Agarwal',
+          sellerLocation: 'Delhi',
+          contactPhone: '9811122233',
+          status: 'request_accepted',
+          buyerName: 'Eco Recycling Ltd',
+          requestAcceptedAt: DateTime.now().subtract(const Duration(hours: 3)),
+        ),
       ];
       await _save();
     }
@@ -254,38 +518,92 @@ class ListingsNotifier extends StateNotifier<List<WasteListing>> {
       _save();
     }
   }
+
+  void updateListingStatus(
+    String sellerName,
+    String wasteType,
+    String status, {
+    String? buyerName,
+    String? pickupRequestId,
+    DateTime? sentAt,
+    DateTime? acceptedAt,
+  }) {
+    final copy = [...state];
+    for (var i = 0; i < copy.length; i++) {
+      if (copy[i].sellerName == sellerName && copy[i].wasteType == wasteType) {
+        copy[i] = WasteListing(
+          wasteType: copy[i].wasteType,
+          weightKg: copy[i].weightKg,
+          pricePerKg: copy[i].pricePerKg,
+          totalValue: copy[i].totalValue,
+          companyName: copy[i].companyName,
+          sellerName: copy[i].sellerName,
+          sellerLocation: copy[i].sellerLocation,
+          contactPhone: copy[i].contactPhone,
+          status: status,
+          buyerName: buyerName ?? copy[i].buyerName,
+          pickupRequestId: pickupRequestId ?? copy[i].pickupRequestId,
+          requestSentAt: sentAt ?? copy[i].requestSentAt,
+          requestAcceptedAt: acceptedAt ?? copy[i].requestAcceptedAt,
+        );
+        break;
+      }
+    }
+    state = copy;
+    _save();
+  }
 }
 
 /// A simple pickup request generated when a seller chooses a company.
 class PickupRequest {
+  final String sellerId;
   final String sellerName;
   final String wasteType;
   final double weight;
   final String companyName;
-  String status; // pending, accepted, completed
+  final double companyLat;
+  final double companyLng;
+  final double sellerLat;
+  final double sellerLng;
+  String status; // pending, accepted, in_transit, completed
 
   PickupRequest({
+    required this.sellerId,
     required this.sellerName,
     required this.wasteType,
     required this.weight,
     required this.companyName,
+    required this.companyLat,
+    required this.companyLng,
+    required this.sellerLat,
+    required this.sellerLng,
     this.status = 'pending',
   });
 
   Map<String, dynamic> toJson() => {
+        'sellerId': sellerId,
         'sellerName': sellerName,
         'wasteType': wasteType,
         'weight': weight,
         'companyName': companyName,
+        'companyLat': companyLat,
+        'companyLng': companyLng,
+        'sellerLat': sellerLat,
+        'sellerLng': sellerLng,
         'status': status,
       };
 
   factory PickupRequest.fromJson(Map<String, dynamic> json) {
     return PickupRequest(
+      sellerId: json['sellerId'] as String,
       sellerName: json['sellerName'] as String,
       wasteType: json['wasteType'] as String,
       weight: (json['weight'] as num).toDouble(),
       companyName: json['companyName'] as String,
+      companyLat: (json['companyLat'] as num).toDouble(),
+      companyLng: (json['companyLng'] as num).toDouble(),
+      sellerLat: (json['sellerLat'] as num).toDouble(),
+      sellerLng: (json['sellerLng'] as num).toDouble(),
       status: json['status'] as String? ?? 'pending',
     );
   }

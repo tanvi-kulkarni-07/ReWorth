@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../../services/waste_classifier_service.dart';
 import '../../models/recycler_company.dart';
@@ -119,6 +120,25 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
     _wasteClassifier.close();
     _weightController.dispose();
     super.dispose();
+  }
+
+  LatLng _sellerLocationLatLng(String location) {
+    const mapping = {
+      'Pune': LatLng(18.5204, 73.8567),
+      'Mumbai': LatLng(19.0760, 72.8777),
+      'Nashik': LatLng(19.9975, 73.7898),
+      'Thane': LatLng(19.2183, 72.9781),
+      'Aurangabad': LatLng(19.8762, 75.3433),
+      'Nagpur': LatLng(21.1458, 79.0882),
+      'Kolhapur': LatLng(16.7050, 74.2433),
+      'Delhi': LatLng(28.7041, 77.1025),
+      'Bengaluru': LatLng(12.9716, 77.5946),
+      'Chennai': LatLng(13.0827, 80.2707),
+      'Noida': LatLng(28.5355, 77.3910),
+      'Hyderabad': LatLng(17.3850, 78.4867),
+    };
+
+    return mapping[location] ?? const LatLng(20.5937, 78.9629);
   }
 
   Future<void> _pickImage(ImageSource source) async {
@@ -655,12 +675,22 @@ class _UploadWasteScreenState extends ConsumerState<UploadWasteScreen> {
                         contactPhone: localContact,
                       ),
                     );
+                    final sellerId = ref.read(userIdProvider) ?? '';
+                    final sellerLatLng = _sellerLocationLatLng(sellerLoc);
+                    final companyLat = c.location?.latitude ?? 0.0;
+                    final companyLng = c.location?.longitude ?? 0.0;
+
                     ref.read(pickupRequestsProvider.notifier).addRequest(
                       PickupRequest(
+                        sellerId: sellerId,
                         sellerName: seller,
                         wasteType: _detectedMaterial,
                         weight: localWeight,
                         companyName: c.name,
+                        companyLat: companyLat,
+                        companyLng: companyLng,
+                        sellerLat: sellerLatLng.latitude,
+                        sellerLng: sellerLatLng.longitude,
                       ),
                     );
 

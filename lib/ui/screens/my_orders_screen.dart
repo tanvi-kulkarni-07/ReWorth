@@ -80,9 +80,18 @@ class MyOrdersScreen extends ConsumerWidget {
                               Expanded(
                                 child: ElevatedButton(
                                   onPressed: () {
+                                    final buyerName = ref.read(userNameProvider) ?? 'Buyer';
                                     ref
                                         .read(ordersProvider.notifier)
                                         .updateOrderStatus(index, 'accepted');
+
+                                    ref.read(listingsProvider.notifier).updateListingStatus(
+                                          order.sellerName,
+                                          order.wasteType,
+                                          'request_accepted',
+                                          buyerName: buyerName,
+                                          acceptedAt: DateTime.now(),
+                                        );
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF00A699),
